@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+
+# Expo / mobile builds
+.expo/
+dist/
+web-build/
+
+# Environment secrets
+.env
+.env.*
+!.env.example
+
+# MongoDB dump / backup folders
+atlas-backup-*/
+
+# Test/output JSON files that may contain tokens
+*-login.json
+activity-logs.json
+alerts.json
+anomalies.json
+admin-users.json
+history.json
+admin-overview.json
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.dbnode_modules/
+.expo/
+dist/
+web-build/
+.env
+.env.*
+!.env.example
+atlas-backup-*/
+*-login.json
+activity-logs.json
+alerts.json
+anomalies.json
+admin-users.json
+history.json
+admin-overview.json
+*.log
+.DS_Store
+Thumbs.db
