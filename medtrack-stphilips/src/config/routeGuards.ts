@@ -29,6 +29,10 @@ export const ROUTE_ROLES: Record<string, AppRole[]> = {
     "staff",
   ],
 
+  "/interpretation": ["admin", "doctor"],
+
+  "/billing": ["admin", "billing"],
+
   "/add-patient": ["admin", "reception"],
 
   "/inventory": ["admin", "pharmacist"],
@@ -65,7 +69,6 @@ export function canAccessRoute(role?: string, route?: string): boolean {
     return false;
   }
 
-  // Every authenticated user can access their own home route.
   if (route === getHomeRouteForRole(role)) {
     return true;
   }

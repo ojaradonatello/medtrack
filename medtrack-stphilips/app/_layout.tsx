@@ -68,13 +68,29 @@ const MENU_SECTIONS: MenuSection[] = [
     ],
   },
 
-  {
+      {
     title: "Clinical Workflow",
     items: [
       {
         label: "Worklist",
         route: "/worklist",
         icon: "🩺",
+      },
+      {
+        label: "Interpretation",
+        route: "/interpretation",
+        icon: "🧪",
+      },
+    ],
+  },
+
+  {
+    title: "Finance",
+    items: [
+      {
+        label: "Billing",
+        route: "/billing",
+        icon: "💳",
       },
     ],
   },
@@ -518,6 +534,20 @@ export default function Layout() {
                 name="worklist"
                 options={{
                   title: "Department Worklist",
+                }}
+              />
+
+             <Drawer.Screen
+              name="interpretation"
+                options={{
+                  title: "Result Interpretation",
+                }}
+              />
+        
+              <Drawer.Screen
+                name="billing"
+                options={{
+                  title: "Billing",
                 }}
               />
 
