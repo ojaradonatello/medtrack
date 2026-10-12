@@ -77,6 +77,11 @@ const MENU_SECTIONS: MenuSection[] = [
         icon: "🩺",
       },
       {
+        label: "Laboratory",
+        route: "/laboratory",
+        icon: "🧫",
+      },
+      {
         label: "Interpretation",
         route: "/interpretation",
         icon: "🧪",
@@ -534,6 +539,13 @@ export default function Layout() {
                 name="worklist"
                 options={{
                   title: "Department Worklist",
+                }}
+              />
+
+                            <Drawer.Screen
+                name="laboratory"
+                options={{
+                  title: "Laboratory",
                 }}
               />
 
