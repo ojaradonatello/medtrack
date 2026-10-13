@@ -81,6 +81,14 @@ const ACTION_NOTES: Record<string, string> = {
   cancelled: "Visit cancelled during billing",
 };
 
+const PAYMENT_METHODS = [
+  { value: "cash", label: "Cash" },
+  { value: "mobile_money", label: "Mobile Money" },
+  { value: "bank_transfer", label: "Bank Transfer" },
+  { value: "insurance", label: "Insurance" },
+  { value: "other", label: "Other" },
+];
+
 function humanize(value?: string) {
   if (!value) return "—";
   return value.replace(/_/g, " ");
@@ -94,6 +102,16 @@ function formatDate(value?: string) {
   } catch {
     return value;
   }
+}
+
+function formatMoney(value?: number | string | null) {
+  const num = Number(value || 0);
+
+  if (!Number.isFinite(num)) {
+    return "UGX 0";
+  }
+
+  return `UGX ${num.toLocaleString()}`;
 }
 
 function getStatusColor(status: string) {
@@ -148,6 +166,11 @@ export default function BillingScreen() {
   );
   const [actionNotes, setActionNotes] = useState("");
   const [submittingAction, setSubmittingAction] = useState(false);
+
+  const [chargedAmount, setChargedAmount] = useState("");
+  const [amountPaid, setAmountPaid] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("cash");
+  const [paymentReference, setPaymentReference] = useState("");
 
   const canBill = user?.role === "admin" || user?.role === "billing";
 
@@ -220,6 +243,10 @@ export default function BillingScreen() {
   const resetAction = () => {
     setPendingAction(null);
     setActionNotes("");
+    setChargedAmount("");
+    setAmountPaid("");
+    setPaymentMethod("cash");
+    setPaymentReference("");
   };
 
   const openAction = (visit: Visit, status: string) => {
@@ -233,11 +260,142 @@ export default function BillingScreen() {
     });
 
     setActionNotes(ACTION_NOTES[status] || "");
+    setChargedAmount("");
+    setAmountPaid("");
+    setPaymentMethod("cash");
+    setPaymentReference("");
+  };
+
+  const validatePayment = () => {
+    const chargedRaw = chargedAmount.trim();
+    const paidRaw = amountPaid.trim();
+
+    if (!chargedRaw) {
+      return {
+        error: "Enter charged amount.",
+        charged: null,
+        paid: null,
+      };
+    }
+
+    const charged = Number(chargedRaw);
+
+    if (!Number.isFinite(charged) || charged < 0) {
+      return {
+        error: "Charged amount must be a valid number greater than or equal to zero.",
+        charged: null,
+        paid: null,
+      };
+    }
+
+    if (!paidRaw) {
+      return {
+        error: "Enter amount paid.",
+        charged: null,
+        paid: null,
+      };
+    }
+
+    const paid = Number(paidRaw);
+
+    if (!Number.isFinite(paid) || paid < 0) {
+      return {
+        error: "Amount paid must be a valid number greater than or equal to zero.",
+        charged: null,
+        paid: null,
+      };
+    }
+
+    if (paid > charged) {
+      return {
+        error: "Amount paid cannot be greater than charged amount.",
+        charged: null,
+        paid: null,
+      };
+    }
+
+    if (paid > 0 && !paymentMethod) {
+      return {
+        error: "Select a payment method.",
+        charged: null,
+        paid: null,
+      };
+    }
+
+    return {
+      error: null,
+      charged,
+      paid,
+    };
   };
 
   const confirmAction = async () => {
     if (!pendingAction) {
       return;
+    }
+
+    const requiresPayment =
+      pendingAction.status === "waiting_dispensary" ||
+      pendingAction.status === "completed";
+
+    let paymentRecorded = false;
+    let paymentMessage = "";
+
+    if (requiresPayment) {
+      const paymentCheck = validatePayment();
+
+      if (paymentCheck.error) {
+        setError(paymentCheck.error);
+        showMessage("Payment required", paymentCheck.error);
+        return;
+      }
+
+      if (
+        paymentCheck.charged === null ||
+        paymentCheck.paid === null
+      ) {
+        return;
+      }
+
+      try {
+        setSubmittingAction(true);
+        setError(null);
+
+        const paymentRes = await API.post("/payments", {
+          visit: pendingAction.visitId,
+          chargedAmount: paymentCheck.charged,
+          amountPaid: paymentCheck.paid,
+          method: paymentMethod,
+          reference: paymentReference.trim() || undefined,
+          note: actionNotes.trim() || undefined,
+        });
+
+        paymentRecorded = true;
+
+        const payment = paymentRes.data?.payment;
+
+        paymentMessage = ` Payment recorded: ${formatMoney(
+          payment?.amountPaid
+        )} (${humanize(payment?.status)}).`;
+      } catch (err: any) {
+        const status = err?.response?.status;
+        const message =
+          err?.response?.data?.error ||
+          err?.response?.data?.message ||
+          err?.message ||
+          "Failed to record payment";
+
+        if (status === 401) {
+          await logout();
+          router.replace("/");
+          return;
+        }
+
+        setError(message);
+        showMessage("Payment failed", message);
+        setSubmittingAction(false);
+        return;
+      }
     }
 
     const payload = {
@@ -250,21 +408,27 @@ export default function BillingScreen() {
 
     try {
       setSubmittingAction(true);
-      setError(null);
 
       await API.patch(`/visits/${pendingAction.visitId}/move`, payload);
 
-      showMessage("Success", `${pendingAction.label} completed.`);
+      showMessage(
+        "Success",
+        `${pendingAction.label} completed.${paymentMessage}`
+      );
 
       resetAction();
       await loadVisits(true);
     } catch (err: any) {
       const status = err?.response?.status;
-      const message =
+      const baseMessage =
         err?.response?.data?.error ||
         err?.response?.data?.message ||
         err?.message ||
         "Failed to update visit";
+
+      const message = paymentRecorded
+        ? `Payment was recorded, but visit movement failed: ${baseMessage}`
+        : baseMessage;
 
       if (status === 401) {
         await logout();
@@ -273,7 +437,15 @@ export default function BillingScreen() {
       }
 
       setError(message);
-      showMessage("Action failed", message);
+      showMessage(
+        paymentRecorded ? "Move failed" : "Action failed",
+        message
+      );
+
+      if (paymentRecorded) {
+        resetAction();
+        await loadVisits(true);
+      }
     } finally {
       setSubmittingAction(false);
     }
@@ -359,8 +531,8 @@ export default function BillingScreen() {
       <Text style={styles.title}>💳 Billing</Text>
 
       <Text style={styles.subtitle}>
-        Review patient charges, clear billing, then send the patient to
-        dispensary or complete the visit.
+        Capture patient charges, record actual amount paid, then send the
+        patient to dispensary or complete the visit.
       </Text>
 
       <Text style={styles.metaText}>
@@ -387,16 +559,111 @@ export default function BillingScreen() {
             Patient: {pendingAction.patientName}
           </Text>
 
-          <Text style={styles.label}>Billing Note</Text>
+          {pendingAction.status === "cancelled" ? (
+            <>
+              <Text style={styles.infoText}>
+                No payment will be recorded for a cancelled visit.
+              </Text>
 
-          <TextInput
-            style={[styles.input, styles.multilineInput]}
-            value={actionNotes}
-            onChangeText={setActionNotes}
-            placeholder="Enter billing note, charge summary, or clearance detail"
-            multiline
-            editable={!submittingAction}
-          />
+              <Text style={styles.label}>Cancellation Note</Text>
+
+              <TextInput
+                style={[styles.input, styles.multilineInput]}
+                value={actionNotes}
+                onChangeText={setActionNotes}
+                placeholder="Enter reason for cancellation"
+                multiline
+                editable={!submittingAction}
+              />
+            </>
+          ) : (
+            <>
+              <View style={styles.paymentSection}>
+                <Text style={styles.sectionTitle}>
+                  Payment Details
+                </Text>
+
+                <View style={styles.row}>
+                  <View style={styles.halfField}>
+                    <Text style={styles.label}>Charged Amount</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={chargedAmount}
+                      onChangeText={setChargedAmount}
+                      keyboardType="numeric"
+                      placeholder="e.g. 50000"
+                      editable={!submittingAction}
+                    />
+                  </View>
+
+                  <View style={styles.halfField}>
+                    <Text style={styles.label}>Amount Paid</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={amountPaid}
+                      onChangeText={setAmountPaid}
+                      keyboardType="numeric"
+                      placeholder="e.g. 50000"
+                      editable={!submittingAction}
+                    />
+                  </View>
+                </View>
+
+                <Text style={styles.label}>Payment Method</Text>
+
+                <View style={styles.methodRow}>
+                  {PAYMENT_METHODS.map((method) => {
+                    const active = paymentMethod === method.value;
+
+                    return (
+                      <TouchableOpacity
+                        key={method.value}
+                        onPress={() => setPaymentMethod(method.value)}
+                        style={[
+                          styles.methodButton,
+                          active && styles.methodButtonActive,
+                        ]}
+                        disabled={submittingAction}
+                      >
+                        <Text
+                          style={[
+                            styles.methodText,
+                            active && styles.methodTextActive,
+                          ]}
+                        >
+                          {method.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                <Text style={styles.label}>
+                  Reference / Receipt Number (optional)
+                </Text>
+
+                <TextInput
+                  style={styles.input}
+                  value={paymentReference}
+                  onChangeText={setPaymentReference}
+                  placeholder="e.g. MM-123456"
+                  autoCapitalize="characters"
+                  editable={!submittingAction}
+                />
+
+                <Text style={styles.label}>Billing Note</Text>
+
+                <TextInput
+                  style={[styles.input, styles.multilineInput]}
+                  value={actionNotes}
+                  onChangeText={setActionNotes}
+                  placeholder="Enter billing note, charge summary, or clearance detail"
+                  multiline
+                  editable={!submittingAction}
+                />
+              </View>
+            </>
+          )}
 
           <TouchableOpacity
             style={[
@@ -627,11 +894,43 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
+  paymentSection: {
+    backgroundColor: "#f9fafb",
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    marginBottom: 12,
+  },
+
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    marginTop: 0,
+    marginBottom: 10,
+  },
+
+  sectionLabel: {
+    fontSize: 15,
+    fontWeight: "bold",
+    marginBottom: 6,
+    color: "#111827",
+  },
+
   label: {
     fontSize: 14,
     fontWeight: "600",
     marginBottom: 6,
     color: "#111827",
+  },
+
+  row: {
+    flexDirection: "row",
+    gap: 10,
+  },
+
+  halfField: {
+    flex: 1,
   },
 
   input: {
@@ -647,6 +946,39 @@ const styles = StyleSheet.create({
   multilineInput: {
     minHeight: 100,
     textAlignVertical: "top",
+  },
+
+  methodRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 12,
+  },
+
+  methodButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: "#e5e7eb",
+  },
+
+  methodButtonActive: {
+    backgroundColor: "#2563eb",
+  },
+
+  methodText: {
+    color: "#111827",
+    fontWeight: "600",
+  },
+
+  methodTextActive: {
+    color: "#ffffff",
+  },
+
+  infoText: {
+    fontSize: 14,
+    color: "#6b7280",
+    marginBottom: 12,
   },
 
   primaryButton: {
@@ -727,13 +1059,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#6b7280",
     fontStyle: "italic",
-  },
-
-  sectionLabel: {
-    fontSize: 15,
-    fontWeight: "bold",
-    marginBottom: 6,
-    color: "#111827",
   },
 
   actionTitle: {

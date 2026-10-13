@@ -5,6 +5,7 @@ const ActivityLog = require("../models/ActivityLog");
 const Inventory = require("../models/Inventory");
 const Drug = require("../models/Drug");
 const Alert = require("../models/Alert");
+const Payment = require("../models/Payment");
 
 const ACTIVE_VISIT_STATUSES = [
   "registered",
@@ -29,7 +30,9 @@ const USER_ROLES = [
 
 function calculateInventoryRisk(inventoryItems) {
   const now = new Date();
-  const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const thirtyDaysFromNow = new Date(
+    now.getTime() + 30 * 24 * 60 * 60 * 1000
+  );
 
   let totalStock = 0;
   let lowStockCount = 0;
@@ -48,7 +51,10 @@ function calculateInventoryRisk(inventoryItems) {
     if (item.expiryDate) {
       const expiry = new Date(item.expiryDate);
 
-      if (!Number.isNaN(expiry.getTime()) && expiry <= thirtyDaysFromNow) {
+      if (
+        !Number.isNaN(expiry.getTime()) &&
+        expiry <= thirtyDaysFromNow
+      ) {
         expiringSoonCount += 1;
       }
     }
@@ -90,6 +96,9 @@ exports.getOverview = async (req, res) => {
       totalDrugs,
       totalAlerts,
       unresolvedAlerts,
+      paymentTotalAgg,
+      paymentTodayAgg,
+      paymentMethodAgg,
     ] = await Promise.all([
       User.countDocuments(),
       Patient.countDocuments(),
@@ -141,6 +150,54 @@ exports.getOverview = async (req, res) => {
       Drug.countDocuments(),
       Alert.countDocuments(),
       Alert.countDocuments({ isResolved: false }),
+
+      Payment.aggregate([
+        {
+          $group: {
+            _id: null,
+            totalIncome: { $sum: "$amountPaid" },
+            totalCharged: { $sum: "$chargedAmount" },
+            transactions: { $sum: 1 },
+          },
+        },
+      ]),
+
+      Payment.aggregate([
+        {
+          $match: {
+            paidAt: {
+              $gte: startOfDay,
+              $lte: endOfDay,
+            },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            incomeToday: { $sum: "$amountPaid" },
+            chargedToday: { $sum: "$chargedAmount" },
+            transactionsToday: { $sum: 1 },
+          },
+        },
+      ]),
+
+      Payment.aggregate([
+        {
+          $match: {
+            paidAt: {
+              $gte: startOfDay,
+              $lte: endOfDay,
+            },
+          },
+        },
+        {
+          $group: {
+            _id: "$method",
+            amount: { $sum: "$amountPaid" },
+            count: { $sum: 1 },
+          },
+        },
+      ]),
     ]);
 
     const usersByRole = {};
@@ -150,6 +207,32 @@ exports.getOverview = async (req, res) => {
     }
 
     const inventoryRisk = calculateInventoryRisk(inventoryItems);
+
+    const paymentTotal = paymentTotalAgg[0] || {};
+    const paymentToday = paymentTodayAgg[0] || {};
+
+    const byMethodToday = {
+      cash: 0,
+      mobile_money: 0,
+      bank_transfer: 0,
+      insurance: 0,
+      other: 0,
+    };
+
+    for (const item of paymentMethodAgg) {
+      const method = String(item._id || "other");
+
+      if (byMethodToday[method] === undefined) {
+        byMethodToday.other += Number(item.amount || 0);
+      } else {
+        byMethodToday[method] += Number(item.amount || 0);
+      }
+    }
+
+    const incomeToday = Number(paymentToday.incomeToday || 0);
+    const transactionsToday = Number(
+      paymentToday.transactionsToday || 0
+    );
 
     return res.json({
       totals: {
@@ -181,12 +264,27 @@ exports.getOverview = async (req, res) => {
         unresolved: unresolvedAlerts,
         resolved: totalAlerts - unresolvedAlerts,
       },
+      payments: {
+        totalIncome: Number(paymentTotal.totalIncome || 0),
+        totalCharged: Number(paymentTotal.totalCharged || 0),
+        transactions: Number(paymentTotal.transactions || 0),
+        incomeToday,
+        chargedToday: Number(paymentToday.chargedToday || 0),
+        transactionsToday,
+        averagePaymentToday:
+          transactionsToday > 0
+            ? Math.round(incomeToday / transactionsToday)
+            : 0,
+        byMethodToday,
+      },
       recentVisits,
       generatedAt: new Date().toISOString(),
     });
   } catch (err) {
+    console.log("ADMIN OVERVIEW ERROR:", err);
+
     return res.status(500).json({
-      error: err.message,
+      error: err.message || "Failed to load admin overview",
     });
   }
 };
@@ -195,6 +293,7 @@ exports.getOverview = async (req, res) => {
 exports.getActivityLogs = async (req, res) => {
   try {
     const requestedLimit = Number(req.query.limit);
+
     const limit = Math.min(
       Number.isFinite(requestedLimit) && requestedLimit > 0
         ? requestedLimit
@@ -217,8 +316,10 @@ exports.getActivityLogs = async (req, res) => {
       logs,
     });
   } catch (err) {
+    console.log("ACTIVITY LOGS ERROR:", err);
+
     return res.status(500).json({
-      error: err.message,
+      error: err.message || "Failed to load activity logs",
     });
   }
 };

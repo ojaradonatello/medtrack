@@ -94,13 +94,24 @@ const MENU_SECTIONS: MenuSection[] = [
     ],
   },
 
-  {
+    {
     title: "Finance",
     items: [
       {
         label: "Billing",
         route: "/billing",
         icon: "💳",
+      },
+    ],
+  },
+
+  {
+    title: "Staff",
+    items: [
+      {
+        label: "Attendance",
+        route: "/attendance",
+        icon: "🗓️",
       },
     ],
   },
@@ -572,6 +583,13 @@ export default function Layout() {
                 name="billing"
                 options={{
                   title: "Billing",
+                }}
+              />
+
+               <Drawer.Screen
+                name="attendance"
+                options={{
+                  title: "Attendance",
                 }}
               />
 

@@ -34,6 +34,16 @@ function formatDate(value?: string) {
   }
 }
 
+function formatMoney(value?: number | string | null) {
+  const num = Number(value || 0);
+
+  if (!Number.isFinite(num)) {
+    return "UGX 0";
+  }
+
+  return `UGX ${num.toLocaleString()}`;
+}
+
 function getStatusColor(status?: string) {
   switch (status) {
     case "waiting_consultation":
@@ -140,6 +150,7 @@ export default function AdminOverviewScreen() {
   const usersByRole = data?.usersByRole || {};
   const inventory = data?.inventory || {};
   const alerts = data?.alerts || {};
+  const payments = data?.payments || {};
   const recentVisits = Array.isArray(data?.recentVisits)
     ? data.recentVisits
     : [];
@@ -175,7 +186,7 @@ export default function AdminOverviewScreen() {
       <Text style={styles.title}>🛡️ Admin Overview</Text>
 
       <Text style={styles.subtitle}>
-        System-wide summary, inventory risk, audit trail, and recent activity.
+        System-wide summary, income, inventory risk, audit trail, and recent activity.
       </Text>
 
       <Text style={styles.metaText}>
@@ -230,6 +241,81 @@ export default function AdminOverviewScreen() {
             {totals.completedToday || 0}
           </Text>
         </View>
+      </View>
+
+      <View style={styles.sectionTitleRow}>
+        <Text style={styles.sectionTitle}>Income & Payments</Text>
+      </View>
+
+      <View style={styles.grid}>
+        <View style={styles.statCard}>
+          <Text style={styles.statLabel}>Income Today</Text>
+          <Text style={[styles.statValue, { color: "#15803d" }]}>
+            {formatMoney(payments.incomeToday)}
+          </Text>
+        </View>
+
+        <View style={styles.statCard}>
+          <Text style={styles.statLabel}>Total Income</Text>
+          <Text style={[styles.statValue, { color: "#047857" }]}>
+            {formatMoney(payments.totalIncome)}
+          </Text>
+        </View>
+
+        <View style={styles.statCard}>
+          <Text style={styles.statLabel}>Transactions Today</Text>
+          <Text style={styles.statValue}>
+            {payments.transactionsToday || 0}
+          </Text>
+        </View>
+
+        <View style={styles.statCard}>
+          <Text style={styles.statLabel}>Total Payment Records</Text>
+          <Text style={styles.statValue}>
+            {payments.transactions || 0}
+          </Text>
+        </View>
+
+        <View style={styles.statCard}>
+          <Text style={styles.statLabel}>Average Payment Today</Text>
+          <Text style={styles.statValue}>
+            {formatMoney(payments.averagePaymentToday)}
+          </Text>
+        </View>
+
+        <View style={styles.statCard}>
+          <Text style={styles.statLabel}>Waiting Billing</Text>
+          <Text style={[styles.statValue, { color: "#b45309" }]}>
+            {workflow.waitingBilling || 0}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.sectionLabel}>Payment Methods Today</Text>
+
+        <Text style={styles.detail}>
+          Cash: {formatMoney(payments.byMethodToday?.cash)}
+        </Text>
+
+        <Text style={styles.detail}>
+          Mobile Money:{" "}
+          {formatMoney(payments.byMethodToday?.mobile_money)}
+        </Text>
+
+        <Text style={styles.detail}>
+          Bank Transfer:{" "}
+          {formatMoney(payments.byMethodToday?.bank_transfer)}
+        </Text>
+
+        <Text style={styles.detail}>
+          Insurance:{" "}
+          {formatMoney(payments.byMethodToday?.insurance)}
+        </Text>
+
+        <Text style={styles.detail}>
+          Other: {formatMoney(payments.byMethodToday?.other)}
+        </Text>
       </View>
 
       <View style={styles.sectionTitleRow}>
@@ -585,6 +671,13 @@ const styles = StyleSheet.create({
     color: "#111827",
   },
 
+  sectionLabel: {
+    fontSize: 15,
+    fontWeight: "bold",
+    marginBottom: 6,
+    color: "#111827",
+  },
+
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -618,7 +711,7 @@ const styles = StyleSheet.create({
   },
 
   statValue: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: "bold",
     color: "#111827",
   },
