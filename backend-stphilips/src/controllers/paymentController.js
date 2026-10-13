@@ -9,6 +9,8 @@ const PAYMENT_METHODS = [
   "other",
 ];
 
+const PAYMENT_STATUSES = ["paid", "partial", "unpaid"];
+
 function parseAmount(value, label) {
   if (value === undefined || value === null || value === "") {
     return {
@@ -53,6 +55,53 @@ function determinePaymentStatus(chargedAmount, amountPaid) {
 
 function getUserId(req) {
   return req.user?._id || req.user?.id || null;
+}
+
+function getRangeFilter(range) {
+  const now = new Date();
+
+  const startOfDay = new Date(now);
+  startOfDay.setHours(0, 0, 0, 0);
+
+  const endOfDay = new Date(now);
+  endOfDay.setHours(23, 59, 59, 999);
+
+  if (range === "today") {
+    return {
+      paidAt: {
+        $gte: startOfDay,
+        $lte: endOfDay,
+      },
+    };
+  }
+
+  if (range === "7") {
+    const from = new Date(now);
+    from.setDate(from.getDate() - 7);
+    from.setHours(0, 0, 0, 0);
+
+    return {
+      paidAt: {
+        $gte: from,
+        $lte: endOfDay,
+      },
+    };
+  }
+
+  if (range === "30") {
+    const from = new Date(now);
+    from.setDate(from.getDate() - 30);
+    from.setHours(0, 0, 0, 0);
+
+    return {
+      paidAt: {
+        $gte: from,
+        $lte: endOfDay,
+      },
+    };
+  }
+
+  return {};
 }
 
 // POST /api/payments
@@ -162,20 +211,16 @@ exports.createPayment = async (req, res) => {
 // GET /api/payments
 exports.getPayments = async (req, res) => {
   try {
-    const { visitId, status, method, limit } = req.query;
+    const { range, status, method, limit } = req.query;
 
-    const filter = {};
+    const filter = getRangeFilter(range === "all" ? "all" : range || "today");
 
-    if (visitId) {
-      filter.visit = visitId;
+    if (status && PAYMENT_STATUSES.includes(String(status))) {
+      filter.status = String(status);
     }
 
-    if (status) {
-      filter.status = status;
-    }
-
-    if (method) {
-      filter.method = method;
+    if (method && PAYMENT_METHODS.includes(String(method))) {
+      filter.method = String(method);
     }
 
     const requestedLimit = Number(limit);
@@ -183,7 +228,7 @@ exports.getPayments = async (req, res) => {
     const safeLimit = Math.min(
       Number.isFinite(requestedLimit) && requestedLimit > 0
         ? requestedLimit
-        : 100,
+        : 200,
       500
     );
 
@@ -213,13 +258,13 @@ exports.getPayments = async (req, res) => {
 // GET /api/payments/summary
 exports.getSummary = async (req, res) => {
   try {
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
+    const { range } = req.query;
 
-    const endOfDay = new Date();
-    endOfDay.setHours(23, 59, 59, 999);
+    const dateFilter = getRangeFilter(
+      range === "all" ? "all" : range || "today"
+    );
 
-    const [totalAgg, todayAgg, methodAgg] = await Promise.all([
+    const [totalAgg, rangeAgg, methodAgg, statusAgg] = await Promise.all([
       Payment.aggregate([
         {
           $group: {
@@ -233,31 +278,21 @@ exports.getSummary = async (req, res) => {
 
       Payment.aggregate([
         {
-          $match: {
-            paidAt: {
-              $gte: startOfDay,
-              $lte: endOfDay,
-            },
-          },
+          $match: dateFilter,
         },
         {
           $group: {
             _id: null,
-            incomeToday: { $sum: "$amountPaid" },
-            chargedToday: { $sum: "$chargedAmount" },
-            transactionsToday: { $sum: 1 },
+            income: { $sum: "$amountPaid" },
+            charged: { $sum: "$chargedAmount" },
+            transactions: { $sum: 1 },
           },
         },
       ]),
 
       Payment.aggregate([
         {
-          $match: {
-            paidAt: {
-              $gte: startOfDay,
-              $lte: endOfDay,
-            },
-          },
+          $match: dateFilter,
         },
         {
           $group: {
@@ -267,12 +302,25 @@ exports.getSummary = async (req, res) => {
           },
         },
       ]),
+
+      Payment.aggregate([
+        {
+          $match: dateFilter,
+        },
+        {
+          $group: {
+            _id: "$status",
+            count: { $sum: 1 },
+            amount: { $sum: "$amountPaid" },
+          },
+        },
+      ]),
     ]);
 
     const total = totalAgg[0] || {};
-    const today = todayAgg[0] || {};
+    const rangeSummary = rangeAgg[0] || {};
 
-    const byMethodToday = {
+    const byMethod = {
       cash: 0,
       mobile_money: 0,
       bank_transfer: 0,
@@ -283,28 +331,52 @@ exports.getSummary = async (req, res) => {
     for (const item of methodAgg) {
       const method = String(item._id || "other");
 
-      if (byMethodToday[method] === undefined) {
-        byMethodToday.other += Number(item.amount || 0);
+      if (byMethod[method] === undefined) {
+        byMethod.other += Number(item.amount || 0);
       } else {
-        byMethodToday[method] += Number(item.amount || 0);
+        byMethod[method] += Number(item.amount || 0);
       }
     }
 
-    const incomeToday = Number(today.incomeToday || 0);
-    const transactionsToday = Number(today.transactionsToday || 0);
+    const byStatus = {
+      paid: 0,
+      partial: 0,
+      unpaid: 0,
+    };
+
+    for (const item of statusAgg) {
+      const status = String(item._id || "unpaid");
+
+      if (byStatus[status] === undefined) {
+        byStatus.unpaid += Number(item.count || 0);
+      } else {
+        byStatus[status] += Number(item.count || 0);
+      }
+    }
+
+    const income = Number(rangeSummary.income || 0);
+    const charged = Number(rangeSummary.charged || 0);
+    const transactions = Number(rangeSummary.transactions || 0);
 
     return res.json({
+      range: range === "all" ? "all" : range || "today",
+      income,
+      charged,
+      outstanding: Math.max(charged - income, 0),
+      transactions,
+      averagePayment:
+        transactions > 0 ? Math.round(income / transactions) : 0,
+
       totalIncome: Number(total.totalIncome || 0),
       totalCharged: Number(total.totalCharged || 0),
-      transactions: Number(total.transactions || 0),
-      incomeToday,
-      chargedToday: Number(today.chargedToday || 0),
-      transactionsToday,
-      averagePaymentToday:
-        transactionsToday > 0
-          ? Math.round(incomeToday / transactionsToday)
-          : 0,
-      byMethodToday,
+      totalOutstanding: Math.max(
+        Number(total.totalCharged || 0) - Number(total.totalIncome || 0),
+        0
+      ),
+      totalTransactions: Number(total.transactions || 0),
+
+      byMethod,
+      byStatus,
       generatedAt: new Date().toISOString(),
     });
   } catch (err) {

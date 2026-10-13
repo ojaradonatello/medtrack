@@ -24,7 +24,7 @@ function allowBillingOrAdmin(req, res, next) {
 
 router.use(authenticate);
 
-router.get("/summary", authorize("admin"), getSummary);
+router.get("/summary", allowBillingOrAdmin, getSummary);
 
 router.get("/", allowBillingOrAdmin, getPayments);
 

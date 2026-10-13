@@ -1,10 +1,10 @@
 # MedTrack AI — St. Philips Hospital MVP
 
-MedTrack AI is a smart healthcare inventory and medication management platform designed to help hospitals, clinics, pharmacies, and health centers efficiently manage drugs, patients, dispensing records, stock levels, alerts, and staff activities.
+MedTrack AI is a smart healthcare inventory, patient workflow, medication management, billing, attendance, and reporting platform designed to help hospitals, clinics, pharmacies, and health centers efficiently manage drugs, patients, staff, payments, dispensing records, stock levels, alerts, and operational activities.
 
-The system combines inventory management, patient tracking, department workflow, analytics, and AI-powered insights to improve healthcare operations and reduce medication stock-outs.
+The system combines hospital workflow management, patient tracking, pharmacy inventory control, billing income tracking, analytics, and AI-powered insights to improve healthcare operations and reduce medication stock-outs.
 
-This repository currently contains the **St. Philips Hospital MVP**, covering the full patient journey from reception registration to pharmacy dispensing and visit completion.
+This repository currently contains the **St. Philips Hospital MVP**, covering the full patient journey from reception registration to doctor consultation, laboratory processing, result interpretation, billing payment capture, pharmacy dispensing, visit completion, and admin supervision.
 
 ---
 
@@ -38,19 +38,22 @@ MedTrack AI is built to support hospital operations by providing a centralized s
 - Patient registration and visit tracking
 - Reception workflow management
 - Doctor consultation worklists
-- Laboratory and interpretation routing
-- Billing and dispensary handoff
+- Laboratory sample processing
+- Result interpretation routing
+- Billing payment capture
 - Pharmacy dispensing
 - Drug inventory management
 - Stock monitoring
+- Income tracking
 - Low-stock and expiry alerts
 - AI anomaly detection
+- Staff attendance tracking
 - Admin supervision
 - Audit/activity logs
 - Staff user management
 - Role-based mobile access
 
-The MVP is designed to be simple enough for hospital staff while still supporting a realistic multi-department clinical workflow.
+The MVP is designed to be simple enough for hospital staff while still supporting a realistic multi-department clinical and financial workflow.
 
 ---
 
@@ -132,11 +135,13 @@ Laboratory
         ↓
 Interpretation
         ↓
-Billing
+Billing + payment capture
         ↓
 Dispensary
         ↓
 Visit completion
+        ↓
+Admin income and operations review
 ```
 
 ### Workflow Summary
@@ -150,23 +155,30 @@ Visit completion
    - Can cancel visits or mark no-shows
 
 2. **Doctor**
-   - Views consultation worklist
+   - Uses dedicated Consultation screen
    - Starts consultation
    - Updates vitals
    - Sends patient to laboratory, billing, or dispensary
-   - Interprets lab results where applicable
+   - Uses dedicated Interpretation screen to review lab results
+   - Sends patient to billing after interpretation
 
 3. **Laboratory**
-   - Views laboratory worklist
+   - Uses dedicated Laboratory screen
    - Starts lab test
-   - Sends results for interpretation or billing
+   - Sends results for interpretation
+   - Can route directly to billing where permitted
 
 4. **Billing**
-   - Views billing worklist
-   - Clears charges
-   - Sends patient to dispensary
+   - Uses dedicated Billing screen
+   - Captures charged amount
+   - Captures actual amount paid
+   - Records payment method
+   - Records payment reference/receipt number
+   - Supports full and partial payment statuses
+   - Sends patient to dispensary or completes visit
 
 5. **Pharmacy**
+   - Uses Dispense screen
    - Views dispensary queue
    - Dispenses medication
    - Reduces inventory stock automatically
@@ -175,9 +187,12 @@ Visit completion
 6. **Admin**
    - Views hospital-wide overview
    - Monitors workflow
+   - Monitors income today and total income
+   - Monitors payment method breakdown
    - Monitors inventory risk
    - Views alerts and AI anomalies
    - Views audit/activity logs
+   - Views staff attendance
    - Manages staff users
 
 ---
@@ -221,30 +236,56 @@ Visit completion
 - Vitals updates during workflow
 - Completion and cancellation states
 
-### Doctor Module
+### Consultation Module
 
-- Consultation worklist
+- Dedicated consultation queue
 - Start consultation
 - Update vitals
 - Send to laboratory
 - Send to billing
 - Send to dispensary
-- Interpretation worklist
 - Complete visit where permitted
+- Cancel visit where permitted
 
 ### Laboratory Module
 
-- Laboratory worklist
+- Dedicated laboratory queue
 - Start lab test
 - Send to interpretation
 - Send to billing where permitted
+- Laboratory notes
+- Cancel visit where permitted
 
-### Billing Module
+### Interpretation Module
 
-- Billing worklist
-- Clear charges
-- Send to dispensary
+- Dedicated interpretation queue
+- Review lab results conceptually through workflow routing
+- Add interpretation notes
+- Send patient to billing
 - Complete visit where permitted
+- Cancel visit where permitted
+
+### Billing and Payment Module
+
+- Dedicated billing queue
+- Capture charged amount
+- Capture actual amount paid
+- Record payment method:
+  - Cash
+  - Mobile Money
+  - Bank Transfer
+  - Insurance
+  - Other
+- Record payment reference/receipt number
+- Determine payment status:
+  - Paid
+  - Partial
+  - Unpaid
+- Store collected-by user reference
+- Store payment timestamp
+- Send patient to dispensary after payment capture
+- Complete visit after payment capture
+- Cancel visit without recording payment
 
 ### Pharmacy / Dispensing Module
 
@@ -293,6 +334,15 @@ Visit completion
 - Detects expiry warnings
 - Normalizes backend anomaly responses for mobile display
 
+### Attendance Module
+
+- Staff check-in
+- Staff check-out
+- My attendance today
+- Admin team attendance view
+- Present/late/checked-out tracking
+- Missing staff monitoring
+
 ### Admin Module
 
 - Admin overview
@@ -304,12 +354,19 @@ Visit completion
 - Registered today
 - Users by role
 - Workflow status counts
+- Income today
+- Total income
+- Transactions today
+- Total payment records
+- Average payment today
+- Payment method breakdown
 - Inventory risk summary
 - Low stock count
 - Expiring soon / expired count
 - Unresolved alerts count
 - Recent activity logs
 - Recent visits
+- Attendance monitoring
 
 ### User Management Module
 
@@ -349,13 +406,13 @@ staff
 
 | Role | Access |
 |---|---|
-| admin | Full system access, admin overview, user management, alerts, AI alerts, history, inventory, dispense, worklists |
-| reception | Dashboard, patient queue, add patient, patients, patient history |
-| doctor | Worklist, patients, patient history |
-| lab | Worklist |
-| billing | Worklist |
-| pharmacist | Worklist, inventory, dispense |
-| staff | Worklist only, depending on configuration |
+| admin | Full system access, admin overview, user management, alerts, AI alerts, history, inventory, dispense, billing, worklists, attendance monitoring |
+| reception | Dashboard, patient queue, add patient, patients, patient history, attendance |
+| doctor | Consultation, interpretation, worklist, patients, patient history, attendance |
+| lab | Laboratory, worklist, attendance |
+| billing | Billing, worklist, attendance |
+| pharmacist | Inventory, dispense, worklist, attendance |
+| staff | Worklist and attendance, depending on configuration |
 
 The mobile app uses route guards so each role only sees permitted modules.
 
@@ -366,7 +423,7 @@ JWT authentication
 role middleware
 ```
 
-Important administrative and clinical routes are not publicly accessible.
+Important administrative, clinical, payment, and attendance routes are not publicly accessible.
 
 ---
 
@@ -416,6 +473,22 @@ MongoDB Compass optional
 - Prevent duplicate active visits
 - View visit status and department
 
+### Billing and Income Features
+
+- Capture charged amount per visit
+- Capture actual amount paid
+- Support full payment
+- Support partial payment
+- Support unpaid billing record
+- Record payment method
+- Record payment reference/receipt number
+- Track which staff member collected payment
+- View income today
+- View total income
+- View payment method breakdown
+- View transactions count
+- View average payment today
+
 ### Inventory Features
 
 - Add, edit, and remove drugs
@@ -437,6 +510,15 @@ MongoDB Compass optional
 - Complete visit after dispensing
 - Receive low-stock and expiry warnings
 
+### Attendance Features
+
+- Staff check-in
+- Staff check-out
+- View personal attendance for today
+- Admin view of team attendance
+- Late arrival detection
+- Missing staff report
+
 ### Admin Features
 
 - User authentication and authorization
@@ -448,6 +530,7 @@ MongoDB Compass optional
 - AI anomaly monitoring
 - User management
 - Inventory risk monitoring
+- Income monitoring
 
 ### Analytics Features
 
@@ -458,6 +541,8 @@ MongoDB Compass optional
 - Low-stock alerts
 - Real-time notifications foundation
 - Workflow status summaries
+- Income summaries
+- Payment method distribution
 
 ---
 
@@ -709,6 +794,22 @@ GET  /api/dispense/queue
 POST /api/dispense
 ```
 
+### Payments
+
+```http
+POST /api/payments
+GET  /api/payments
+GET  /api/payments/summary
+```
+
+Payment roles:
+
+```txt
+POST /api/payments       → billing, admin
+GET  /api/payments       → billing, admin
+GET  /api/payments/summary → admin
+```
+
 ### History
 
 ```http
@@ -727,6 +828,24 @@ PUT /api/alerts/:id/resolve
 
 ```http
 GET /api/anomalies
+```
+
+### Attendance
+
+```http
+GET  /api/attendance/today
+GET  /api/attendance/my-today
+POST /api/attendance/check-in
+POST /api/attendance/check-out
+```
+
+Attendance roles:
+
+```txt
+GET  /api/attendance/today    → admin
+GET  /api/attendance/my-today → authenticated staff
+POST /api/attendance/check-in → authenticated staff
+POST /api/attendance/check-out → authenticated staff
 ```
 
 ### Admin
@@ -762,7 +881,16 @@ Patient History
 ### Clinical Workflow
 
 ```txt
-Department Worklist
+Consultation
+Laboratory
+Interpretation
+Worklist
+```
+
+### Finance
+
+```txt
+Billing
 ```
 
 ### Pharmacy
@@ -770,6 +898,12 @@ Department Worklist
 ```txt
 Inventory
 Dispense
+```
+
+### Staff
+
+```txt
+Attendance
 ```
 
 ### Administration
@@ -814,21 +948,27 @@ DEMO_SCRIPT.md
 3. Capture initial vitals
 4. Confirm patient appears in queue
 5. Login as doctor
-6. Start consultation
-7. Send patient to laboratory
-8. Login as lab
-9. Start lab test
-10. Send to interpretation
-11. Login as doctor
-12. Send to billing
-13. Login as billing
-14. Send to dispensary
-15. Login as pharmacist
-16. Dispense medication
-17. Complete visit
-18. Login as admin
-19. Review admin overview
-20. Review inventory, history, alerts, AI alerts, and activity logs
+6. Open Consultation
+7. Start consultation
+8. Send patient to laboratory
+9. Login as lab
+10. Open Laboratory
+11. Start lab test
+12. Send to interpretation
+13. Login as doctor
+14. Open Interpretation
+15. Send to billing
+16. Login as billing
+17. Open Billing
+18. Capture charged amount and amount paid
+19. Send to dispensary
+20. Login as pharmacist
+21. Dispense medication
+22. Complete visit
+23. Login as admin
+24. Review Admin Overview
+25. Review income today, total income, payment methods
+26. Review inventory, history, alerts, AI alerts, attendance, and activity logs
 
 ---
 
@@ -844,6 +984,8 @@ real MongoDB passwords
 real SMS keys
 real WhatsApp tokens
 login response JSON files
+payment response JSON files
+attendance response JSON files
 ```
 
 The repository includes:
@@ -886,7 +1028,13 @@ Alerts
 AI Anomaly Alerts
 User Management
 Reception Vitals Capture
-Department Workflows
+Dedicated Consultation Module
+Dedicated Laboratory Module
+Dedicated Interpretation Module
+Dedicated Billing Module
+Billing Payment Capture
+Admin Income Summary
+Attendance Check-In/Check-Out
 Dispensing History
 Inventory Risk Monitoring
 ```
@@ -898,9 +1046,10 @@ AI Stock Prediction
 Prescription OCR
 Multi-Hospital Support
 SMS Notifications
-Advanced Reporting
+Advanced Financial Reports
+Invoice PDF Generation
 Offline Mode
-Attendance Monitoring Enhancement
+Attendance Analytics Enhancement
 Performance Analytics Enhancement
 Real-Time Notifications
 Exportable PDF/Excel Reports

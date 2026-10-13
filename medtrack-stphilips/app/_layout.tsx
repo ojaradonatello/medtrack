@@ -94,7 +94,7 @@ const MENU_SECTIONS: MenuSection[] = [
     ],
   },
 
-    {
+      {
     title: "Finance",
     items: [
       {
@@ -102,9 +102,13 @@ const MENU_SECTIONS: MenuSection[] = [
         route: "/billing",
         icon: "💳",
       },
+      {
+        label: "Payments",
+        route: "/payments",
+        icon: "💰",
+      },
     ],
   },
-
   {
     title: "Staff",
     items: [
@@ -585,7 +589,13 @@ export default function Layout() {
                   title: "Billing",
                 }}
               />
-
+              <Drawer.Screen
+                name="payments"
+                options={{
+                  title: "Payments & Income",
+                }}
+              />
+              
                <Drawer.Screen
                 name="attendance"
                 options={{

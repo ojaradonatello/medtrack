@@ -37,6 +37,8 @@ export const ROUTE_ROLES: Record<string, AppRole[]> = {
 
   "/billing": ["admin", "billing"],
 
+  "/payments": ["admin", "billing"],
+
   "/attendance": [
     "admin",
     "reception",
