@@ -31,7 +31,22 @@ const patientSchema = new mongoose.Schema(
       unique: true,
     },
 
-    address: {
+       address: {
+      type: String,
+      trim: true,
+    },
+
+    tribe: {
+      type: String,
+      trim: true,
+    },
+
+    nextOfKinName: {
+      type: String,
+      trim: true,
+    },
+
+    nextOfKinPhone: {
       type: String,
       trim: true,
     },

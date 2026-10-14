@@ -86,8 +86,10 @@ export default function AddPatientScreen() {
   const [age, setAge] = useState("");
   const [gender, setGender] = useState("");
   const [address, setAddress] = useState("");
-  const [notes, setNotes] = useState("");
-
+const [tribe, setTribe] = useState("");
+const [nextOfKinName, setNextOfKinName] = useState("");
+const [nextOfKinPhone, setNextOfKinPhone] = useState("");
+const [notes, setNotes] = useState("");
   const [systolic, setSystolic] = useState("");
   const [diastolic, setDiastolic] = useState("");
   const [temperature, setTemperature] = useState("");
@@ -99,6 +101,10 @@ export default function AddPatientScreen() {
     setAge("");
     setGender("");
     setAddress("");
+    setTribe("");
+    setNextOfKinName("");
+    setNextOfKinPhone("");
+    setNotes("");
     setNotes("");
     setSystolic("");
     setDiastolic("");
@@ -344,6 +350,9 @@ export default function AddPatientScreen() {
     const cleanPhone = phone.trim();
     const cleanName = name.trim();
     const cleanAddress = address.trim();
+    const cleanTribe = tribe.trim();
+    const cleanNextOfKinName = nextOfKinName.trim();
+    const cleanNextOfKinPhone = nextOfKinPhone.trim();
 
     if (!cleanName) {
       setError("Enter patient name.");
@@ -382,13 +391,24 @@ export default function AddPatientScreen() {
       setRegistering(true);
       setError(null);
       setSuccess(null);
+const patientPayload: any = {
+  name: cleanName,
+  gender,
+  phone: cleanPhone,
+  address: cleanAddress,
+};
 
-      const patientPayload: any = {
-        name: cleanName,
-        gender,
-        phone: cleanPhone,
-        address: cleanAddress,
-      };
+if (cleanTribe) {
+  patientPayload.tribe = cleanTribe;
+}
+
+if (cleanNextOfKinName) {
+  patientPayload.nextOfKinName = cleanNextOfKinName;
+}
+
+if (cleanNextOfKinPhone) {
+  patientPayload.nextOfKinPhone = cleanNextOfKinPhone;
+}
 
       if (parsedAge !== undefined) {
         patientPayload.age = parsedAge;
@@ -526,10 +546,22 @@ export default function AddPatientScreen() {
             </Text>
 
             <Text style={styles.detail}>
-              Address: {lookup.patient.address || "—"}
-            </Text>
+  Address: {lookup.patient.address || "—"}
+</Text>
 
-            <View style={styles.divider} />
+<Text style={styles.detail}>
+  Tribe: {lookup.patient.tribe || "—"}
+</Text>
+
+<Text style={styles.detail}>
+  Next of Kin: {lookup.patient.nextOfKinName || "—"}
+</Text>
+
+<Text style={styles.detail}>
+  Next of Kin Phone: {lookup.patient.nextOfKinPhone || "—"}
+</Text>
+
+<View style={styles.divider} />
 
             {hasActiveVisit && lookup.activeVisit ? (
               <>
@@ -767,16 +799,47 @@ export default function AddPatientScreen() {
             </View>
 
             <Text style={styles.label}>Address</Text>
-            <TextInput
-              style={[styles.input, styles.multilineInput]}
-              placeholder="Village / area"
-              value={address}
-              onChangeText={setAddress}
-              multiline
-              editable={!registering}
-            />
+<TextInput
+  style={[styles.input, styles.multilineInput]}
+  placeholder="Village / area"
+  value={address}
+  onChangeText={setAddress}
+  multiline
+  editable={!registering}
+/>
 
-            <Text style={styles.label}>Visit Note</Text>
+<Text style={styles.label}>Tribe</Text>
+<TextInput
+  style={styles.input}
+  placeholder="Optional"
+  value={tribe}
+  onChangeText={setTribe}
+  autoCapitalize="words"
+  editable={!registering}
+/>
+
+<Text style={styles.label}>Next of Kin Name</Text>
+<TextInput
+  style={styles.input}
+  placeholder="Optional"
+  value={nextOfKinName}
+  onChangeText={setNextOfKinName}
+  autoCapitalize="words"
+  editable={!registering}
+/>
+
+<Text style={styles.label}>Next of Kin Phone</Text>
+<TextInput
+  style={styles.input}
+  placeholder="Optional"
+  value={nextOfKinPhone}
+  onChangeText={setNextOfKinPhone}
+  keyboardType="phone-pad"
+  autoCapitalize="none"
+  editable={!registering}
+/>
+
+<Text style={styles.label}>Visit Note</Text>
             <TextInput
               style={[styles.input, styles.multilineInput]}
               placeholder="Optional note, e.g. new patient registration"

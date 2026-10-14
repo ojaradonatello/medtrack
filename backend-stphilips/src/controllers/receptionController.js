@@ -182,11 +182,14 @@ exports.registerPatientAndVisit = async (req, res) => {
     });
   }
 
-  const cleanPatient = {
+    const cleanPatient = {
     name: String(patient.name || "").trim(),
     gender: patient.gender,
     phone: patient.phone ? String(patient.phone).trim() : undefined,
     address: patient.address ? String(patient.address).trim() : undefined,
+    tribe: patient.tribe ? String(patient.tribe).trim() : undefined,
+    nextOfKinName: patient.nextOfKinName ? String(patient.nextOfKinName).trim() : undefined,
+    nextOfKinPhone: patient.nextOfKinPhone ? String(patient.nextOfKinPhone).trim() : undefined,
   };
 
   if (!cleanPatient.name) {
