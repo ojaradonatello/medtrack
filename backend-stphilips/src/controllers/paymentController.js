@@ -1,5 +1,6 @@
 const Payment = require("../models/Payment");
 const Visit = require("../models/Visit");
+const User = require("../models/User");
 
 const PAYMENT_METHODS = [
   "cash",
@@ -213,7 +214,9 @@ exports.getPayments = async (req, res) => {
   try {
     const { range, status, method, limit } = req.query;
 
-    const filter = getRangeFilter(range === "all" ? "all" : range || "today");
+    const filter = getRangeFilter(
+      range === "all" ? "all" : range || "today"
+    );
 
     if (status && PAYMENT_STATUSES.includes(String(status))) {
       filter.status = String(status);
@@ -264,7 +267,13 @@ exports.getSummary = async (req, res) => {
       range === "all" ? "all" : range || "today"
     );
 
-    const [totalAgg, rangeAgg, methodAgg, statusAgg] = await Promise.all([
+    const [
+      totalAgg,
+      rangeAgg,
+      methodAgg,
+      statusAgg,
+      collectorAgg,
+    ] = await Promise.all([
       Payment.aggregate([
         {
           $group: {
@@ -315,6 +324,26 @@ exports.getSummary = async (req, res) => {
           },
         },
       ]),
+
+      Payment.aggregate([
+        {
+          $match: dateFilter,
+        },
+        {
+          $group: {
+            _id: "$collectedBy",
+            amountPaid: { $sum: "$amountPaid" },
+            chargedAmount: { $sum: "$chargedAmount" },
+            transactions: { $sum: 1 },
+          },
+        },
+        {
+          $sort: { amountPaid: -1 },
+        },
+        {
+          $limit: 50,
+        },
+      ]),
     ]);
 
     const total = totalAgg[0] || {};
@@ -354,12 +383,46 @@ exports.getSummary = async (req, res) => {
       }
     }
 
+    const collectorIds = collectorAgg
+      .map((item) => item._id)
+      .filter(Boolean);
+
+    const collectors =
+      collectorIds.length > 0
+        ? await User.find({
+            _id: { $in: collectorIds },
+          })
+            .select("name email role")
+            .lean()
+        : [];
+
+    const collectorMap = new Map(
+      collectors.map((collector) => [String(collector._id), collector])
+    );
+
+    const byCollector = collectorAgg.map((item) => {
+      const collector = collectorMap.get(String(item._id)) || null;
+
+      const amountPaid = Number(item.amountPaid || 0);
+      const chargedAmount = Number(item.chargedAmount || 0);
+
+      return {
+        collectorId: item._id,
+        collector,
+        amountPaid,
+        chargedAmount,
+        outstanding: Math.max(chargedAmount - amountPaid, 0),
+        transactions: Number(item.transactions || 0),
+      };
+    });
+
     const income = Number(rangeSummary.income || 0);
     const charged = Number(rangeSummary.charged || 0);
     const transactions = Number(rangeSummary.transactions || 0);
 
     return res.json({
       range: range === "all" ? "all" : range || "today",
+
       income,
       charged,
       outstanding: Math.max(charged - income, 0),
@@ -370,13 +433,16 @@ exports.getSummary = async (req, res) => {
       totalIncome: Number(total.totalIncome || 0),
       totalCharged: Number(total.totalCharged || 0),
       totalOutstanding: Math.max(
-        Number(total.totalCharged || 0) - Number(total.totalIncome || 0),
+        Number(total.totalCharged || 0) -
+          Number(total.totalIncome || 0),
         0
       ),
       totalTransactions: Number(total.transactions || 0),
 
       byMethod,
       byStatus,
+      byCollector,
+
       generatedAt: new Date().toISOString(),
     });
   } catch (err) {

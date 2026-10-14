@@ -59,6 +59,15 @@ type Payment = {
   collectedBy?: Staff | null;
 };
 
+type CollectorSummary = {
+  collector?: Staff | null;
+  collectorId?: string;
+  amountPaid?: number;
+  chargedAmount?: number;
+  outstanding?: number;
+  transactions?: number;
+};
+
 type Summary = {
   range?: string;
   income?: number;
@@ -72,6 +81,7 @@ type Summary = {
   totalTransactions?: number;
   byMethod?: Record<string, number>;
   byStatus?: Record<string, number>;
+  byCollector?: CollectorSummary[];
   generatedAt?: string;
 };
 
@@ -451,9 +461,65 @@ export default function PaymentsScreen() {
           {formatMoney(summary?.byMethod?.insurance)}
         </Text>
 
-        <Text style={styles.detail}>
+                <Text style={styles.detail}>
           Other: {formatMoney(summary?.byMethod?.other)}
         </Text>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.sectionLabel}>
+          Collections by Billing Staff
+        </Text>
+
+        {!summary?.byCollector || summary.byCollector.length === 0 ? (
+          <Text style={styles.detail}>
+            No collections recorded in this date range.
+          </Text>
+        ) : (
+          summary.byCollector.map((row, index) => {
+            const key =
+              row.collector?._id ||
+              row.collectorId ||
+              `collector-${index}`;
+
+            return (
+              <View key={key} style={styles.collectorRow}>
+                <Text style={styles.collectorName}>
+                  {row.collector?.name || "Unknown staff"}
+                </Text>
+
+                <Text style={styles.detail}>
+                  Role: {humanize(row.collector?.role)}
+                </Text>
+
+                <Text style={styles.detail}>
+                  Email: {row.collector?.email || "—"}
+                </Text>
+
+                <Text style={styles.moneyLine}>
+                  Collected: {formatMoney(row.amountPaid)}
+                </Text>
+
+                <Text style={styles.detail}>
+                  Charged: {formatMoney(row.chargedAmount)}
+                </Text>
+
+                <Text
+                  style={[
+                    styles.detail,
+                    (row.outstanding || 0) > 0 && { color: "#b91c1c" },
+                  ]}
+                >
+                  Outstanding: {formatMoney(row.outstanding)}
+                </Text>
+
+                <Text style={styles.detail}>
+                  Transactions: {row.transactions || 0}
+                </Text>
+              </View>
+            );
+          })
+        )}
       </View>
 
       <View style={styles.sectionTitleRow}>
@@ -883,10 +949,26 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
 
-  note: {
+    note: {
     marginTop: 8,
     fontSize: 13,
     color: "#6b7280",
     fontStyle: "italic",
+  },
+
+  collectorRow: {
+    backgroundColor: "#f9fafb",
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    marginBottom: 10,
+  },
+
+  collectorName: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#111827",
+    marginBottom: 6,
   },
 });
