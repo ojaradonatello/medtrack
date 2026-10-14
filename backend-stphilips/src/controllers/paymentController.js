@@ -193,7 +193,7 @@ exports.createPayment = async (req, res) => {
 
     const populated = await Payment.findById(payment._id)
       .populate("visit", "visitNumber status currentDepartment patient")
-      .populate("patient", "name phone gender age address")
+      .populate("patient", "name phone gender age address tribe nextOfKinName nextOfKinPhone")
       .populate("collectedBy", "name email role");
 
     return res.status(201).json({
@@ -241,7 +241,7 @@ exports.getPayments = async (req, res) => {
         .sort({ paidAt: -1, createdAt: -1 })
         .limit(safeLimit)
         .populate("visit", "visitNumber status currentDepartment patient")
-        .populate("patient", "name phone gender age address")
+        .populate("patient", "name phone gender age address tribe nextOfKinName nextOfKinPhone")
         .populate("collectedBy", "name email role"),
     ]);
 

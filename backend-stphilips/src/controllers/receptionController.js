@@ -283,7 +283,7 @@ exports.getQueue = async (req, res) => {
 
     const visits = await Visit.find(filter)
       .sort({ createdAt: 1 })
-      .populate("patient", "name phone gender age address");
+      .populate("patient", "name phone gender age address tribe nextOfKinName nextOfKinPhone");
 
     return res.json({
       total: visits.length,

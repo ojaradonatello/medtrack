@@ -84,7 +84,7 @@ exports.getPatientVisits = async (req, res) => {
 
     const visits = await Visit.find({ patient: patient._id })
       .sort({ createdAt: -1 })
-      .populate("patient", "name phone gender age address");
+      .populate("patient", "name phone gender age address tribe nextOfKinName nextOfKinPhone");
 
     res.json({
       patient,

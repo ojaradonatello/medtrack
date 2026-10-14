@@ -143,7 +143,7 @@ exports.getOverview = async (req, res) => {
       Visit.find()
         .sort({ createdAt: -1 })
         .limit(10)
-        .populate("patient", "name phone gender age address"),
+        .populate("patient", "name phone gender age address tribe nextOfKinName nextOfKinPhone"),
       Inventory.find()
         .select("quantity minStockLevel expiryDate")
         .lean(),
@@ -307,7 +307,7 @@ exports.getActivityLogs = async (req, res) => {
         .sort({ createdAt: -1 })
         .limit(limit)
         .populate("actor", "name email role")
-        .populate("patient", "name phone gender age address")
+        .populate("patient", "name phone gender age address tribe nextOfKinName nextOfKinPhone")
         .populate("visit", "visitNumber status currentDepartment"),
     ]);
 

@@ -367,7 +367,7 @@ exports.getVisits = async (req, res) => {
 
     const visits = await Visit.find(filter)
       .sort({ createdAt: -1 })
-      .populate("patient", "name phone gender age address");
+      .populate("patient", "name phone gender age address tribe nextOfKinName nextOfKinPhone");
 
     res.json(visits);
   } catch (err) {
@@ -379,7 +379,7 @@ exports.getVisits = async (req, res) => {
 exports.getVisit = async (req, res) => {
   try {
     const visit = await Visit.findById(req.params.id)
-      .populate("patient", "name phone gender age address");
+      .populate("patient", "name phone gender age address tribe nextOfKinName nextOfKinPhone");
 
     if (!visit) {
       return res.status(404).json({ error: "Visit not found" });
@@ -527,7 +527,7 @@ exports.moveVisit = async (req, res) => {
     await visit.save();
 
     const updatedVisit = await Visit.findById(visit._id)
-      .populate("patient", "name phone gender age address");
+      .populate("patient", "name phone gender age address tribe nextOfKinName nextOfKinPhone");
 
     // Create audit log, but do not block the main workflow if logging fails
     try {

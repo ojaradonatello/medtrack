@@ -37,7 +37,7 @@ exports.getHistory = async (req, res) => {
     const filter = getDateFilter(req.query);
 
     const history = await Dispense.find(filter)
-      .populate("patient", "name phone gender age address")
+      .populate("patient", "name phone gender age address tribe nextOfKinName nextOfKinPhone")
       .populate("drug", "name category manufacturer")
       .populate("dispensedBy", "name email role")
       .sort({ createdAt: -1 })

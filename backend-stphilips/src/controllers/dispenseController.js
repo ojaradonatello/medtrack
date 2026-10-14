@@ -64,7 +64,7 @@ exports.getDispenseQueue = async (req, res) => {
   try {
     const visits = await Visit.find({ status: "waiting_dispensary" })
       .sort({ createdAt: 1 })
-      .populate("patient", "name phone gender age address");
+      .populate("patient", "name phone gender age address tribe nextOfKinName nextOfKinPhone");
 
     res.json({
       total: visits.length,

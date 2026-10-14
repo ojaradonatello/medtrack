@@ -790,10 +790,17 @@ export default function ConsultationScreen() {
               Age: {patient.age ?? "—"}
             </Text>
 
-            <Text style={styles.detail}>
+                        <Text style={styles.detail}>
               Address: {patient.address || "—"}
             </Text>
 
+            <Text style={styles.detail}>
+              Tribe: {patient.tribe || "—"}
+            </Text>
+
+            <Text style={[styles.detail, { color: "#b91c1c", fontWeight: "bold" }]}>
+              🚨 Next of Kin: {patient.nextOfKinName || "—"} ({patient.nextOfKinPhone || "No phone"})
+            </Text>
             <View style={styles.divider} />
 
             <Text style={styles.detail}>
