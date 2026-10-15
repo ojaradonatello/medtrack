@@ -186,7 +186,7 @@ export default function PatientHistoryScreen() {
       </TouchableOpacity>
 
       <Text style={styles.title}>📜 Patient Visit History</Text>
-      
+
 
       <ErrorBanner message={error} />
 
@@ -316,6 +316,64 @@ export default function PatientHistoryScreen() {
                 {visit.vitals.weightKg !== undefined ? (
                   <Text style={styles.detail}>
                     Weight: {visit.vitals.weightKg} kg
+                  </Text>
+                ) : null}
+                           </>
+            ) : null}
+
+            {visit.visitSummary &&
+            Object.keys(visit.visitSummary).length > 0 ? (
+              <>
+                <View style={styles.divider} />
+
+                <Text style={styles.sectionLabel}>
+                  Visit Summary / Discharge Note
+                </Text>
+
+                {visit.visitSummary.diagnosis ? (
+                  <Text style={styles.detail}>
+                    Diagnosis: {visit.visitSummary.diagnosis}
+                  </Text>
+                ) : null}
+
+                {visit.visitSummary.treatmentGiven ? (
+                  <Text style={styles.detail}>
+                    Treatment Given:{" "}
+                    {visit.visitSummary.treatmentGiven}
+                  </Text>
+                ) : null}
+
+                {visit.visitSummary.advice ? (
+                  <Text style={styles.detail}>
+                    Advice: {visit.visitSummary.advice}
+                  </Text>
+                ) : null}
+
+                {visit.visitSummary.dischargeStatus ? (
+                  <Text style={styles.detail}>
+                    Discharge Status:{" "}
+                    {humanize(visit.visitSummary.dischargeStatus)}
+                  </Text>
+                ) : null}
+
+                {visit.visitSummary.summaryNote ? (
+                  <Text style={styles.note}>
+                    Summary Note:{" "}
+                    {visit.visitSummary.summaryNote}
+                  </Text>
+                ) : null}
+
+                {visit.visitSummary.followUpDate ? (
+                  <Text style={styles.detail}>
+                    Follow-up Date:{" "}
+                    {formatDate(visit.visitSummary.followUpDate)}
+                  </Text>
+                ) : null}
+
+                {visit.visitSummary.createdAt ? (
+                  <Text style={styles.detail}>
+                    Summary Recorded:{" "}
+                    {formatDate(visit.visitSummary.createdAt)}
                   </Text>
                 ) : null}
               </>

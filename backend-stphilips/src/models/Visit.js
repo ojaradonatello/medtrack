@@ -26,6 +26,63 @@ const DEPARTMENTS = [
   "closed",
 ];
 
+const DISCHARGE_STATUSES = [
+  "improved",
+  "stable",
+  "referred",
+  "admitted",
+  "discharged",
+  "other",
+];
+
+const visitSummarySchema = new Schema(
+  {
+    diagnosis: {
+      type: String,
+      trim: true,
+    },
+
+    treatmentGiven: {
+      type: String,
+      trim: true,
+    },
+
+    advice: {
+      type: String,
+      trim: true,
+    },
+
+    dischargeStatus: {
+      type: String,
+      enum: DISCHARGE_STATUSES,
+      trim: true,
+    },
+
+    summaryNote: {
+      type: String,
+      trim: true,
+    },
+
+    followUpDate: {
+      type: Date,
+      default: null,
+    },
+
+    createdBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+    },
+
+    createdAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  {
+    _id: false,
+  }
+);
+
 const visitSchema = new Schema(
   {
     patient: {
@@ -68,6 +125,11 @@ const visitSchema = new Schema(
     notes: {
       type: String,
       trim: true,
+    },
+
+    visitSummary: {
+      type: visitSummarySchema,
+      default: undefined,
     },
 
     startedAt: {

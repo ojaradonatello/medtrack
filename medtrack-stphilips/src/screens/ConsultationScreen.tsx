@@ -43,7 +43,7 @@ type Visit = {
   startedAt?: string;
   updatedAt?: string;
   patient?: Patient;
-  vitals?: {
+   vitals?: {
     bloodPressure?: {
       systolic?: number;
       diastolic?: number;
@@ -52,14 +52,33 @@ type Visit = {
     pulseBpm?: number;
     weightKg?: number;
   };
-};
 
+  visitSummary?: {
+    diagnosis?: string;
+    treatmentGiven?: string;
+    advice?: string;
+    dischargeStatus?: string;
+    summaryNote?: string;
+    followUpDate?: string;
+    createdBy?: string;
+    createdAt?: string;
+  } | null;
+};
 type PendingAction = {
   visitId: string;
   status: string;
   label: string;
   patientName: string;
 };
+
+const DISCHARGE_STATUSES = [
+  { value: "improved", label: "Improved" },
+  { value: "stable", label: "Stable" },
+  { value: "referred", label: "Referred" },
+  { value: "admitted", label: "Admitted" },
+  { value: "discharged", label: "Discharged" },
+  { value: "other", label: "Other" },
+];
 
 const CONSULTATION_STATUSES = [
   "waiting_consultation",
@@ -240,6 +259,11 @@ export default function ConsultationScreen() {
   const [temperature, setTemperature] = useState("");
   const [pulse, setPulse] = useState("");
   const [weight, setWeight] = useState("");
+  const [diagnosis, setDiagnosis] = useState("");
+  const [treatmentGiven, setTreatmentGiven] = useState("");
+  const [advice, setAdvice] = useState("");
+  const [dischargeStatus, setDischargeStatus] = useState("improved");
+  
 
   const canConsult =
     user?.role === "admin" || user?.role === "doctor";
@@ -325,15 +349,18 @@ export default function ConsultationScreen() {
   }, [loadVisits]);
 
   const resetAction = () => {
-    setPendingAction(null);
-    setActionNotes("");
-    setSystolic("");
-    setDiastolic("");
-    setTemperature("");
-    setPulse("");
-    setWeight("");
-  };
-
+  setPendingAction(null);
+  setActionNotes("");
+  setSystolic("");
+  setDiastolic("");
+  setTemperature("");
+  setPulse("");
+  setWeight("");
+  setDiagnosis("");
+  setTreatmentGiven("");
+  setAdvice("");
+  setDischargeStatus("improved");
+};
   const openAction = (visit: Visit, status: string) => {
     const label = ACTION_LABELS[status] || humanize(status);
 
@@ -375,6 +402,11 @@ export default function ConsultationScreen() {
         ? String(visit.vitals.weightKg)
         : ""
     );
+
+    setDiagnosis("");
+setTreatmentGiven("");
+setAdvice("");
+setDischargeStatus("improved");
   };
 
   const buildVitalsPayload = () => {
@@ -481,6 +513,14 @@ export default function ConsultationScreen() {
       return;
     }
 
+    if (pendingAction.status === "completed" && !diagnosis.trim()) {
+  showMessage(
+    "Summary required",
+    "Enter diagnosis before completing the visit."
+  );
+  return;
+}
+
     const vitalsResult = buildVitalsPayload();
 
     if (vitalsResult.error) {
@@ -496,9 +536,19 @@ export default function ConsultationScreen() {
         "Consultation action",
     };
 
-    if (vitalsResult.vitals) {
-      payload.vitals = vitalsResult.vitals;
-    }
+   if (vitalsResult.vitals) {
+  payload.vitals = vitalsResult.vitals;
+}
+
+if (pendingAction.status === "completed") {
+  payload.visitSummary = {
+    diagnosis: diagnosis.trim(),
+    treatmentGiven: treatmentGiven.trim() || undefined,
+    advice: advice.trim() || undefined,
+    dischargeStatus,
+    summaryNote: actionNotes.trim() || undefined,
+  };
+}
 
     try {
       setSubmittingAction(true);
@@ -672,6 +722,73 @@ export default function ConsultationScreen() {
             multiline
             editable={!submittingAction}
           />
+       
+          {pendingAction.status === "completed" ? (
+  <View style={styles.summarySection}>
+    <Text style={styles.sectionTitle}>
+      Visit Summary / Discharge Note
+    </Text>
+
+    <Text style={styles.label}>Diagnosis *</Text>
+    <TextInput
+      style={[styles.input, styles.multilineInput]}
+      value={diagnosis}
+      onChangeText={setDiagnosis}
+      placeholder="Enter main diagnosis"
+      multiline
+      editable={!submittingAction}
+    />
+
+    <Text style={styles.label}>Treatment Given</Text>
+    <TextInput
+      style={[styles.input, styles.multilineInput]}
+      value={treatmentGiven}
+      onChangeText={setTreatmentGiven}
+      placeholder="Enter treatment given, medication, procedure, or plan"
+      multiline
+      editable={!submittingAction}
+    />
+
+    <Text style={styles.label}>Advice / Follow-up</Text>
+    <TextInput
+      style={[styles.input, styles.multilineInput]}
+      value={advice}
+      onChangeText={setAdvice}
+      placeholder="Enter patient advice, return date, warning signs, or follow-up plan"
+      multiline
+      editable={!submittingAction}
+    />
+
+    <Text style={styles.label}>Discharge Status</Text>
+
+    <View style={styles.statusRow}>
+      {DISCHARGE_STATUSES.map((item) => {
+        const active = dischargeStatus === item.value;
+
+        return (
+          <TouchableOpacity
+            key={item.value}
+            onPress={() => setDischargeStatus(item.value)}
+            style={[
+              styles.statusButton,
+              active && styles.statusButtonActive,
+            ]}
+            disabled={submittingAction}
+          >
+            <Text
+              style={[
+                styles.statusText,
+                active && styles.statusTextActive,
+              ]}
+            >
+              {item.label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  </View>
+) : null}
 
           <Text style={styles.sectionTitle}>Vitals (optional)</Text>
 
@@ -1133,8 +1250,44 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
 
-  actionButtonText: {
-    color: "#ffffff",
-    fontWeight: "bold",
-  },
+actionButtonText: {
+  color: "#ffffff",
+  fontWeight: "bold",
+},
+
+summarySection: {
+  backgroundColor: "#f9fafb",
+  padding: 12,
+  borderRadius: 10,
+  borderWidth: 1,
+  borderColor: "#e5e7eb",
+  marginBottom: 12,
+},
+
+statusRow: {
+  flexDirection: "row",
+  flexWrap: "wrap",
+  gap: 8,
+  marginBottom: 12,
+},
+
+statusButton: {
+  paddingHorizontal: 12,
+  paddingVertical: 8,
+  borderRadius: 999,
+  backgroundColor: "#e5e7eb",
+},
+
+statusButtonActive: {
+  backgroundColor: "#2563eb",
+},
+
+statusText: {
+  color: "#111827",
+  fontWeight: "600",
+},
+
+statusTextActive: {
+  color: "#ffffff",
+},
 });

@@ -25,6 +25,15 @@ const DEPARTMENTS = [
   "closed",
 ];
 
+const DISCHARGE_STATUSES = [
+  "improved",
+  "stable",
+  "referred",
+  "admitted",
+  "discharged",
+  "other",
+];
+
 const ALLOWED_MOVES = {
   registered: [
     "waiting_consultation",
@@ -336,6 +345,154 @@ function validateVitals(vitals) {
   };
 }
 
+function cleanText(value, label) {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return undefined;
+  }
+
+  if (trimmed.length > 2000) {
+    return null;
+  }
+
+  return trimmed;
+}
+
+function validateVisitSummary(summary) {
+  if (summary === undefined || summary === null) {
+    return {
+      error: null,
+      data: null,
+    };
+  }
+
+  if (typeof summary !== "object" || Array.isArray(summary)) {
+    return {
+      error: "visitSummary must be an object",
+      data: null,
+    };
+  }
+
+  const result = {};
+
+  const diagnosis = cleanText(summary.diagnosis, "Diagnosis");
+
+  if (diagnosis === null) {
+    return {
+      error: "Diagnosis must be a valid text value",
+      data: null,
+    };
+  }
+
+  if (diagnosis !== undefined) {
+    result.diagnosis = diagnosis;
+  }
+
+  const treatmentGiven = cleanText(
+    summary.treatmentGiven,
+    "Treatment given"
+  );
+
+  if (treatmentGiven === null) {
+    return {
+      error: "Treatment given must be a valid text value",
+      data: null,
+    };
+  }
+
+  if (treatmentGiven !== undefined) {
+    result.treatmentGiven = treatmentGiven;
+  }
+
+  const advice = cleanText(summary.advice, "Advice");
+
+  if (advice === null) {
+    return {
+      error: "Advice must be a valid text value",
+      data: null,
+    };
+  }
+
+  if (advice !== undefined) {
+    result.advice = advice;
+  }
+
+  const summaryNote = cleanText(
+    summary.summaryNote,
+    "Summary note"
+  );
+
+  if (summaryNote === null) {
+    return {
+      error: "Summary note must be a valid text value",
+      data: null,
+    };
+  }
+
+  if (summaryNote !== undefined) {
+    result.summaryNote = summaryNote;
+  }
+
+  if (
+    summary.dischargeStatus !== undefined &&
+    summary.dischargeStatus !== null &&
+    summary.dischargeStatus !== ""
+  ) {
+    const dischargeStatus = String(summary.dischargeStatus)
+      .trim()
+      .toLowerCase();
+
+    if (!DISCHARGE_STATUSES.includes(dischargeStatus)) {
+      return {
+        error: `Discharge status must be one of: ${DISCHARGE_STATUSES.join(
+          ", "
+        )}`,
+        data: null,
+      };
+    }
+
+    result.dischargeStatus = dischargeStatus;
+  }
+
+  if (
+    summary.followUpDate !== undefined &&
+    summary.followUpDate !== null &&
+    summary.followUpDate !== ""
+  ) {
+    const followUpDate = new Date(summary.followUpDate);
+
+    if (Number.isNaN(followUpDate.getTime())) {
+      return {
+        error: "Follow-up date is invalid",
+        data: null,
+      };
+    }
+
+    result.followUpDate = followUpDate;
+  }
+
+  if (Object.keys(result).length === 0) {
+    return {
+      error: null,
+      data: null,
+    };
+  }
+
+  return {
+    error: null,
+    data: result,
+  };
+}
+
 // ➕ Create Visit
 exports.createVisit = async (req, res) => {
   try {
@@ -403,7 +560,13 @@ exports.moveVisit = async (req, res) => {
       });
     }
 
-    const { status, currentDepartment, notes, vitals } = req.body;
+    const {
+  status,
+  currentDepartment,
+  notes,
+  vitals,
+  visitSummary,
+} = req.body;
 
     const vitalsCheck = validateVitals(vitals);
 
@@ -414,12 +577,28 @@ exports.moveVisit = async (req, res) => {
     }
 
     const vitalsData = vitalsCheck.data;
+    const summaryCheck = validateVisitSummary(visitSummary);
 
-    if (!status && !currentDepartment && !vitalsData) {
-      return res.status(400).json({
-        error: "Provide status, currentDepartment, or vitals to update visit",
-      });
-    }
+if (summaryCheck.error) {
+  return res.status(400).json({
+    error: summaryCheck.error,
+  });
+}
+
+const summaryData = summaryCheck.data;
+
+   if (
+  !status &&
+  !currentDepartment &&
+  !vitalsData &&
+  !summaryData &&
+  notes === undefined
+) {
+  return res.status(400).json({
+    error:
+      "Provide status, currentDepartment, vitals, notes, or visitSummary to update visit",
+  });
+}
 
     const visit = await Visit.findById(req.params.id);
 
@@ -520,6 +699,40 @@ exports.moveVisit = async (req, res) => {
       }
     }
 
+    if (summaryData) {
+  if (!visit.visitSummary) {
+    visit.visitSummary = {};
+  }
+
+  if (summaryData.diagnosis !== undefined) {
+    visit.visitSummary.diagnosis = summaryData.diagnosis;
+  }
+
+  if (summaryData.treatmentGiven !== undefined) {
+    visit.visitSummary.treatmentGiven = summaryData.treatmentGiven;
+  }
+
+  if (summaryData.advice !== undefined) {
+    visit.visitSummary.advice = summaryData.advice;
+  }
+
+  if (summaryData.summaryNote !== undefined) {
+    visit.visitSummary.summaryNote = summaryData.summaryNote;
+  }
+
+  if (summaryData.dischargeStatus !== undefined) {
+    visit.visitSummary.dischargeStatus = summaryData.dischargeStatus;
+  }
+
+  if (summaryData.followUpDate !== undefined) {
+    visit.visitSummary.followUpDate = summaryData.followUpDate;
+  }
+
+  visit.visitSummary.createdBy = req.user?.id || req.user?._id;
+  visit.visitSummary.createdAt = new Date();
+}
+
+
     if (visit.status === "completed") {
       visit.completedAt = new Date();
     }
@@ -555,6 +768,9 @@ exports.moveVisit = async (req, res) => {
       if (notes !== undefined) {
         descriptionParts.push("notes updated");
       }
+      if (summaryData) {
+  descriptionParts.push("visit summary updated");
+  }
 
       await ActivityLog.create({
         actor: req.user.id,
@@ -569,13 +785,14 @@ exports.moveVisit = async (req, res) => {
             ? descriptionParts.join("; ")
             : "visit updated",
         changes: {
-          fromStatus: oldStatus,
-          toStatus: visit.status,
-          fromDepartment: oldDepartment,
-          toDepartment: visit.currentDepartment,
-          notesUpdated: notes !== undefined,
-          vitalsUpdated: !!vitalsData,
-        },
+  fromStatus: oldStatus,
+  toStatus: visit.status,
+  fromDepartment: oldDepartment,
+  toDepartment: visit.currentDepartment,
+  notesUpdated: notes !== undefined,
+  vitalsUpdated: !!vitalsData,
+  summaryUpdated: !!summaryData,
+},
       });
     } catch (logErr) {
       console.log("Activity log error:", logErr.message);
