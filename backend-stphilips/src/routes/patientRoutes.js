@@ -1,5 +1,7 @@
 const express = require("express");
 const router = express.Router();
+const authenticate = require("../middleware/authMiddleware");
+const authorize = require("../middleware/roleMiddleware");
 
 const {
   createPatient,
@@ -21,7 +23,7 @@ router.get("/:id/visits", getPatientVisits);
 
 router.get("/:id", getPatient);
 
-router.put("/:id", updatePatient);
+router.put("/:id", authenticate, authorize("admin", "reception", "doctor"), updatePatient);
 
 router.delete("/:id", deletePatient);
 

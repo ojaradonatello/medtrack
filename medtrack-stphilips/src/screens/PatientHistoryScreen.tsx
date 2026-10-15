@@ -186,6 +186,7 @@ export default function PatientHistoryScreen() {
       </TouchableOpacity>
 
       <Text style={styles.title}>📜 Patient Visit History</Text>
+      
 
       <ErrorBanner message={error} />
 

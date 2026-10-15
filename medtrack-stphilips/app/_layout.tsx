@@ -556,6 +556,13 @@ export default function Layout() {
               />
 
               <Drawer.Screen
+               name="edit-patient"
+               options={{
+               title: "Edit Patient",
+               }}
+            />
+
+              <Drawer.Screen
                 name="worklist"
                 options={{
                   title: "Department Worklist",

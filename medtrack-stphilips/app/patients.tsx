@@ -138,6 +138,12 @@ export default function PatientsScreen() {
     );
   };
 
+const openEdit = (patient: Patient) => {
+    router.push(
+      `/edit-patient?id=${encodeURIComponent(patient._id)}`
+    );
+  };
+
   return (
     <ScrollView
       style={styles.screen}
@@ -259,6 +265,15 @@ export default function PatientsScreen() {
               )}
 
               <View style={styles.divider} />
+
+                            <TouchableOpacity
+                style={[styles.historyButton, { backgroundColor: "#ca8a04", marginBottom: 10 }]}
+                onPress={() => openEdit(patient)}
+              >
+                <Text style={styles.historyButtonText}>
+                  ✏️ Edit Patient
+                </Text>
+              </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.historyButton}
