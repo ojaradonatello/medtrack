@@ -73,6 +73,21 @@ function getStatusColor(status: string) {
   }
 }
 
+function getResultColor(status?: string) {
+  switch (status) {
+    case "normal":
+      return "#16a34a";
+    case "abnormal":
+      return "#b45309";
+    case "critical":
+      return "#b91c1c";
+    case "pending":
+      return "#6b7280";
+    default:
+      return "#374151";
+  }
+}
+
 export default function PatientHistoryScreen() {
   const router = useRouter();
   const { logout } = useContext(AuthContext);
@@ -187,7 +202,6 @@ export default function PatientHistoryScreen() {
 
       <Text style={styles.title}>📜 Patient Visit History</Text>
 
-
       <ErrorBanner message={error} />
 
       <View style={styles.patientCard}>
@@ -211,6 +225,18 @@ export default function PatientHistoryScreen() {
 
         <Text style={styles.detail}>
           Address: {patient?.address || "—"}
+        </Text>
+
+        <Text style={styles.detail}>
+          Tribe: {patient?.tribe || "—"}
+        </Text>
+
+        <Text style={styles.detail}>
+          Next of Kin: {patient?.nextOfKinName || "—"}
+        </Text>
+
+        <Text style={styles.detail}>
+          Next of Kin Phone: {patient?.nextOfKinPhone || "—"}
         </Text>
 
         <View style={styles.divider} />
@@ -318,7 +344,67 @@ export default function PatientHistoryScreen() {
                     Weight: {visit.vitals.weightKg} kg
                   </Text>
                 ) : null}
-                           </>
+              </>
+            ) : null}
+
+            {visit.labResults && visit.labResults.length > 0 ? (
+              <>
+                <View style={styles.divider} />
+
+                <Text style={styles.sectionLabel}>Laboratory Results</Text>
+
+                {visit.labResults.map((result: any, resultIndex: number) => (
+                  <View
+                    key={`${result.testName || "result"}-${resultIndex}`}
+                    style={styles.resultPreview}
+                  >
+                    <Text style={styles.resultPreviewName}>
+                      {result.testName || "Unknown test"}
+                    </Text>
+
+                    <Text style={styles.resultPreviewValue}>
+                      Result: {result.resultValue || "—"}
+                    </Text>
+
+                    {result.unit ? (
+                      <Text style={styles.detail}>
+                        Unit: {result.unit}
+                      </Text>
+                    ) : null}
+
+                    {result.referenceRange ? (
+                      <Text style={styles.detail}>
+                        Reference: {result.referenceRange}
+                      </Text>
+                    ) : null}
+
+                    {result.status ? (
+                      <View
+                        style={[
+                          styles.resultStatusBadge,
+                          {
+                            backgroundColor: getResultColor(result.status),
+                          },
+                        ]}
+                      >
+                        <Text style={styles.resultStatusText}>
+                          {humanize(result.status)}
+                        </Text>
+                      </View>
+                    ) : null}
+
+                    {result.notes ? (
+                      <Text style={styles.note}>{result.notes}</Text>
+                    ) : null}
+
+                    {result.performedAt ? (
+                      <Text style={styles.detail}>
+                        Recorded: {formatDate(result.performedAt)}
+                      </Text>
+                    ) : null}
+                  </View>
+                ))}
+              </>
             ) : null}
 
             {visit.visitSummary &&
@@ -507,5 +593,41 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 6,
     color: "#111827",
+  },
+
+  resultPreview: {
+    backgroundColor: "#f9fafb",
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    marginBottom: 10,
+  },
+
+  resultPreviewName: {
+    fontSize: 15,
+    fontWeight: "bold",
+    color: "#111827",
+    marginBottom: 4,
+  },
+
+  resultPreviewValue: {
+    fontSize: 14,
+    color: "#374151",
+    marginBottom: 8,
+  },
+
+  resultStatusBadge: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    marginBottom: 8,
+  },
+
+  resultStatusText: {
+    color: "#ffffff",
+    fontWeight: "bold",
+    fontSize: 12,
   },
 });

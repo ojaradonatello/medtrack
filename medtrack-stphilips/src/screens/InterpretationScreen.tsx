@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useState } from "react";
+import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   RefreshControl,
   TouchableOpacity,
   ActivityIndicator,
+  TextInput,
   Platform,
   Alert,
   StyleSheet,
@@ -30,6 +31,20 @@ type Patient = {
   gender?: string;
   age?: number;
   address?: string;
+  tribe?: string;
+  nextOfKinName?: string;
+  nextOfKinPhone?: string;
+};
+
+type LabResult = {
+  testName?: string;
+  resultValue?: string;
+  unit?: string;
+  referenceRange?: string;
+  status?: string;
+  notes?: string;
+  performedAt?: string;
+  enteredBy?: string;
 };
 
 type Visit = {
@@ -42,6 +57,7 @@ type Visit = {
   startedAt?: string;
   updatedAt?: string;
   patient?: Patient;
+  labResults?: LabResult[];
   vitals?: {
     bloodPressure?: {
       systolic?: number;
@@ -75,9 +91,9 @@ const ACTION_LABELS: Record<string, string> = {
 };
 
 const ACTION_NOTES: Record<string, string> = {
-  waiting_billing: "Lab results interpreted, sent to billing",
-  completed: "Interpretation completed and visit closed",
-  cancelled: "Visit cancelled during interpretation",
+  waiting_billing: "Results interpreted. Sent to billing.",
+  completed: "Results interpreted. Visit completed.",
+  cancelled: "Visit cancelled during interpretation.",
 };
 
 function humanize(value?: string) {
@@ -116,6 +132,21 @@ function getStatusColor(status: string) {
     case "cancelled":
       return "#b91c1c";
     case "no_show":
+      return "#6b7280";
+    default:
+      return "#374151";
+  }
+}
+
+function getResultColor(status?: string) {
+  switch (status) {
+    case "normal":
+      return "#16a34a";
+    case "abnormal":
+      return "#b45309";
+    case "critical":
+      return "#b91c1c";
+    case "pending":
       return "#6b7280";
     default:
       return "#374151";
@@ -179,7 +210,14 @@ export default function InterpretationScreen() {
           (visit: Visit) => visit.status === INTERPRETATION_STATUS
         );
 
-        setVisits(interpretationVisits);
+        const sorted = [...interpretationVisits].sort((a, b) => {
+          return (
+            new Date(a.createdAt || 0).getTime() -
+            new Date(b.createdAt || 0).getTime()
+          );
+        });
+
+        setVisits(sorted);
       } catch (err: any) {
         const status = err?.response?.status;
         const message =
@@ -319,11 +357,25 @@ export default function InterpretationScreen() {
     );
   };
 
+  const totalCritical = useMemo(() => {
+    let count = 0;
+
+    for (const visit of visits) {
+      for (const result of visit.labResults || []) {
+        if (result.status === "critical") {
+          count += 1;
+        }
+      }
+    }
+
+    return count;
+  }, [visits]);
+
   if (loading) {
     return (
       <LoadingState
         title="Loading interpretation queue..."
-        subtitle="Please wait while lab results needing interpretation load."
+        subtitle="Please wait while lab results load for interpretation."
       />
     );
   }
@@ -368,11 +420,23 @@ export default function InterpretationScreen() {
         {user?.role || "unknown"}
       </Text>
 
-      <View style={styles.summaryCard}>
-        <Text style={styles.summaryLabel}>
-          Patients Waiting for Interpretation
-        </Text>
-        <Text style={styles.summaryValue}>{visits.length}</Text>
+      <View style={styles.summaryGrid}>
+        <View style={styles.summaryCard}>
+          <Text style={styles.summaryLabel}>Waiting Interpretation</Text>
+          <Text style={styles.summaryValue}>{visits.length}</Text>
+        </View>
+
+        <View style={styles.summaryCard}>
+          <Text style={styles.summaryLabel}>Critical Results</Text>
+          <Text
+            style={[
+              styles.summaryValue,
+              totalCritical > 0 && { color: "#b91c1c" },
+            ]}
+          >
+            {totalCritical}
+          </Text>
+        </View>
       </View>
 
       <ErrorBanner message={error} />
@@ -389,21 +453,11 @@ export default function InterpretationScreen() {
 
           <Text style={styles.label}>Interpretation Note</Text>
 
-          <TouchableOpacity
-            style={styles.input}
-            onPress={() => {}}
-            activeOpacity={1}
-          >
-            <Text style={styles.hiddenTextInputPlaceholder}>
-              Tap below to edit note
-            </Text>
-          </TouchableOpacity>
-
           <TextInput
             style={[styles.input, styles.multilineInput]}
             value={actionNotes}
             onChangeText={setActionNotes}
-            placeholder="Enter interpretation summary, diagnosis, or next action"
+            placeholder="Enter interpretation, diagnosis impression, or next action"
             multiline
             editable={!submittingAction}
           />
@@ -440,8 +494,8 @@ export default function InterpretationScreen() {
 
       {!error && visits.length === 0 ? (
         <EmptyState
-          title="No patients are waiting for interpretation."
-          subtitle="Send a patient from laboratory to interpretation first."
+          title="No patients are waiting for result interpretation."
+          subtitle="Laboratory staff must send results here first."
         />
       ) : null}
 
@@ -466,7 +520,7 @@ export default function InterpretationScreen() {
               Age: {patient.age ?? "—"}
             </Text>
 
-                        <Text style={styles.detail}>
+            <Text style={styles.detail}>
               Address: {patient.address || "—"}
             </Text>
 
@@ -474,8 +528,14 @@ export default function InterpretationScreen() {
               Tribe: {patient.tribe || "—"}
             </Text>
 
-            <Text style={[styles.detail, { color: "#b91c1c", fontWeight: "bold" }]}>
-              🚨 Next of Kin: {patient.nextOfKinName || "—"} ({patient.nextOfKinPhone || "No phone"})
+            <Text
+              style={[
+                styles.detail,
+                { color: "#b91c1c", fontWeight: "bold" },
+              ]}
+            >
+              🚨 Next of Kin: {patient.nextOfKinName || "—"} (
+              {patient.nextOfKinPhone || "No phone"})
             </Text>
 
             <View style={styles.divider} />
@@ -490,7 +550,7 @@ export default function InterpretationScreen() {
                 { backgroundColor: getStatusColor(visit.status) },
               ]}
             >
-              <Text style={styles.statusText}>
+              <Text style={styles.visitStatusText}>
                 {humanize(visit.status)}
               </Text>
             </View>
@@ -545,6 +605,64 @@ export default function InterpretationScreen() {
 
             <View style={styles.divider} />
 
+            <Text style={styles.sectionLabel}>Laboratory Results</Text>
+
+            {visit.labResults && visit.labResults.length > 0 ? (
+              visit.labResults.map((result, index) => (
+                <View
+                  key={`${result.testName || "result"}-${index}`}
+                  style={styles.resultPreview}
+                >
+                  <Text style={styles.resultPreviewName}>
+                    {result.testName || "Unknown test"}
+                  </Text>
+
+                  <Text style={styles.resultPreviewValue}>
+                    Result: {result.resultValue || "—"}
+                  </Text>
+
+                  {result.unit ? (
+                    <Text style={styles.detail}>Unit: {result.unit}</Text>
+                  ) : null}
+
+                  {result.referenceRange ? (
+                    <Text style={styles.detail}>
+                      Reference: {result.referenceRange}
+                    </Text>
+                  ) : null}
+
+                  <View
+                    style={[
+                      styles.resultStatusBadge,
+                      {
+                        backgroundColor: getResultColor(result.status),
+                      },
+                    ]}
+                  >
+                    <Text style={styles.resultStatusText}>
+                      {humanize(result.status)}
+                    </Text>
+                  </View>
+
+                  {result.notes ? (
+                    <Text style={styles.note}>{result.notes}</Text>
+                  ) : null}
+
+                  {result.performedAt ? (
+                    <Text style={styles.time}>
+                      Recorded: {formatDate(result.performedAt)}
+                    </Text>
+                  ) : null}
+                </View>
+              ))
+            ) : (
+              <Text style={styles.noActionText}>
+                No lab results were recorded.
+              </Text>
+            )}
+
+            <View style={styles.divider} />
+
             <Text style={styles.actionTitle}>
               Interpretation Actions
             </Text>
@@ -562,6 +680,8 @@ export default function InterpretationScreen() {
                     styles.actionButton,
                     actionStatus === "cancelled" && styles.dangerButton,
                     actionStatus === "completed" && styles.successButton,
+                    actionStatus === "waiting_billing" &&
+                      styles.billingButton,
                     submittingAction && styles.disabledButton,
                   ]}
                 >
@@ -577,8 +697,6 @@ export default function InterpretationScreen() {
     </ScrollView>
   );
 }
-
-import { TextInput } from "react-native";
 
 const styles = StyleSheet.create({
   screen: {
@@ -606,22 +724,31 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
 
+  summaryGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    marginBottom: 16,
+  },
+
   summaryCard: {
     backgroundColor: "#ffffff",
     padding: 16,
     borderRadius: 12,
-    marginBottom: 16,
     borderWidth: 1,
     borderColor: "#e5e7eb",
+    minWidth: 140,
+    flexGrow: 1,
   },
 
   summaryLabel: {
-    fontSize: 14,
+    fontSize: 13,
     color: "#6b7280",
+    marginBottom: 6,
   },
 
   summaryValue: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: "bold",
     color: "#111827",
   },
@@ -647,6 +774,13 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
+  sectionLabel: {
+    fontSize: 15,
+    fontWeight: "bold",
+    marginBottom: 6,
+    color: "#111827",
+  },
+
   label: {
     fontSize: 14,
     fontWeight: "600",
@@ -662,10 +796,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 12,
     fontSize: 15,
-  },
-
-  hiddenTextInputPlaceholder: {
-    color: "#9ca3af",
   },
 
   multilineInput: {
@@ -740,7 +870,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
 
-  statusText: {
+  visitStatusText: {
     color: "#ffffff",
     fontWeight: "bold",
     fontSize: 13,
@@ -753,11 +883,46 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
   },
 
-  sectionLabel: {
+  time: {
+    fontSize: 13,
+    color: "#6b7280",
+    marginTop: 6,
+  },
+
+  resultPreview: {
+    backgroundColor: "#f9fafb",
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    marginBottom: 10,
+  },
+
+  resultPreviewName: {
     fontSize: 15,
     fontWeight: "bold",
-    marginBottom: 6,
     color: "#111827",
+    marginBottom: 4,
+  },
+
+  resultPreviewValue: {
+    fontSize: 14,
+    color: "#374151",
+    marginBottom: 8,
+  },
+
+  resultStatusBadge: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    marginBottom: 8,
+  },
+
+  resultStatusText: {
+    color: "#ffffff",
+    fontWeight: "bold",
+    fontSize: 12,
   },
 
   actionTitle: {
@@ -765,6 +930,11 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 8,
     color: "#111827",
+  },
+
+  noActionText: {
+    fontSize: 14,
+    color: "#6b7280",
   },
 
   actionButton: {
@@ -775,12 +945,16 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
 
-  dangerButton: {
-    backgroundColor: "#dc2626",
+  billingButton: {
+    backgroundColor: "#ca8a04",
   },
 
   successButton: {
     backgroundColor: "#16a34a",
+  },
+
+  dangerButton: {
+    backgroundColor: "#dc2626",
   },
 
   disabledButton: {

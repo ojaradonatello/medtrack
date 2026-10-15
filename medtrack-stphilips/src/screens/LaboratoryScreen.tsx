@@ -31,6 +31,20 @@ type Patient = {
   gender?: string;
   age?: number;
   address?: string;
+  tribe?: string;
+  nextOfKinName?: string;
+  nextOfKinPhone?: string;
+};
+
+type LabResult = {
+  testName?: string;
+  resultValue?: string;
+  unit?: string;
+  referenceRange?: string;
+  status?: string;
+  notes?: string;
+  performedAt?: string;
+  enteredBy?: string;
 };
 
 type Visit = {
@@ -43,6 +57,7 @@ type Visit = {
   startedAt?: string;
   updatedAt?: string;
   patient?: Patient;
+  labResults?: LabResult[];
   vitals?: {
     bloodPressure?: {
       systolic?: number;
@@ -59,6 +74,14 @@ type PendingAction = {
   status: string;
   label: string;
   patientName: string;
+};
+
+type LabResultInput = {
+  id: string;
+  testName: string;
+  resultValue: string;
+  status: string;
+  notes: string;
 };
 
 const LAB_STATUSES = ["waiting_lab", "lab_in_progress"];
@@ -92,6 +115,23 @@ const ACTION_NOTES: Record<string, string> = {
   waiting_billing: "Laboratory sent patient to billing",
   cancelled: "Visit cancelled by laboratory",
 };
+
+const RESULT_STATUSES = [
+  { value: "normal", label: "Normal" },
+  { value: "abnormal", label: "Abnormal" },
+  { value: "critical", label: "Critical" },
+  { value: "pending", label: "Pending" },
+];
+
+function makeEmptyResult(): LabResultInput {
+  return {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    testName: "",
+    resultValue: "",
+    status: "normal",
+    notes: "",
+  };
+}
 
 function humanize(value?: string) {
   if (!value) return "—";
@@ -129,6 +169,21 @@ function getStatusColor(status: string) {
     case "cancelled":
       return "#b91c1c";
     case "no_show":
+      return "#6b7280";
+    default:
+      return "#374151";
+  }
+}
+
+function getResultColor(status?: string) {
+  switch (status) {
+    case "normal":
+      return "#16a34a";
+    case "abnormal":
+      return "#b45309";
+    case "critical":
+      return "#b91c1c";
+    case "pending":
       return "#6b7280";
     default:
       return "#374151";
@@ -176,6 +231,10 @@ export default function LaboratoryScreen() {
   );
   const [actionNotes, setActionNotes] = useState("");
   const [submittingAction, setSubmittingAction] = useState(false);
+
+  const [results, setResults] = useState<LabResultInput[]>([
+    makeEmptyResult(),
+  ]);
 
   const canUseLaboratory =
     user?.role === "admin" || user?.role === "lab";
@@ -263,6 +322,7 @@ export default function LaboratoryScreen() {
   const resetAction = () => {
     setPendingAction(null);
     setActionNotes("");
+    setResults([makeEmptyResult()]);
   };
 
   const openAction = (visit: Visit, status: string) => {
@@ -276,6 +336,95 @@ export default function LaboratoryScreen() {
     });
 
     setActionNotes(ACTION_NOTES[status] || "");
+
+    if (status === "waiting_interpretation") {
+      setResults([makeEmptyResult()]);
+    } else {
+      setResults([]);
+    }
+  };
+
+  const addResult = () => {
+    setResults((prev) => [...prev, makeEmptyResult()]);
+  };
+
+  const removeResult = (index: number) => {
+    setResults((prev) =>
+      prev.length > 1 ? prev.filter((_, i) => i !== index) : prev
+    );
+  };
+
+  const updateResult = (
+    index: number,
+    field: keyof LabResultInput,
+    value: string
+  ) => {
+    setResults((prev) =>
+      prev.map((row, i) =>
+        i === index
+          ? {
+              ...row,
+              [field]: value,
+            }
+          : row
+      )
+    );
+  };
+
+  const buildLabResultsPayload = (): {
+    error: string | null;
+    data: any[] | null | undefined;
+  } => {
+    if (!pendingAction) {
+      return { error: null, data: undefined };
+    }
+
+    if (pendingAction.status !== "waiting_interpretation") {
+      return { error: null, data: undefined };
+    }
+
+    const cleaned = results
+      .map((row) => ({
+        testName: row.testName.trim(),
+        resultValue: row.resultValue.trim(),
+        status: row.status.trim() || "normal",
+        notes: row.notes.trim(),
+      }))
+      .filter((row) => row.testName || row.resultValue || row.notes);
+
+    if (cleaned.length === 0) {
+      return {
+        error:
+          "Add at least one lab result before sending to interpretation.",
+        data: null,
+      };
+    }
+
+    for (const row of cleaned) {
+      if (!row.testName) {
+        return {
+          error: "Each lab result needs a test name.",
+          data: null,
+        };
+      }
+
+      if (!row.resultValue) {
+        return {
+          error: "Each lab result needs a result value.",
+          data: null,
+        };
+      }
+    }
+
+    return {
+      error: null,
+      data: cleaned.map((row) => ({
+        testName: row.testName,
+        resultValue: row.resultValue,
+        status: row.status,
+        notes: row.notes || undefined,
+      })),
+    };
   };
 
   const confirmAction = async () => {
@@ -283,13 +432,24 @@ export default function LaboratoryScreen() {
       return;
     }
 
-    const payload = {
+    const labCheck = buildLabResultsPayload();
+
+    if (labCheck.error) {
+      showMessage("Lab result required", labCheck.error);
+      return;
+    }
+
+    const payload: any = {
       status: pendingAction.status,
       notes:
         actionNotes.trim() ||
         ACTION_NOTES[pendingAction.status] ||
         "Laboratory action",
     };
+
+    if (labCheck.data) {
+      payload.labResults = labCheck.data;
+    }
 
     try {
       setSubmittingAction(true);
@@ -413,8 +573,8 @@ export default function LaboratoryScreen() {
       <Text style={styles.title}>🧫 Laboratory</Text>
 
       <Text style={styles.subtitle}>
-        Process laboratory samples, start tests, and route patients to
-        interpretation or billing.
+        Process laboratory samples, record test results, and route patients
+        to interpretation or billing.
       </Text>
 
       <Text style={styles.metaText}>
@@ -461,6 +621,116 @@ export default function LaboratoryScreen() {
             multiline
             editable={!submittingAction}
           />
+
+          {pendingAction.status === "waiting_interpretation" ? (
+            <View style={styles.labSection}>
+              <Text style={styles.sectionTitle}>Lab Results</Text>
+
+              <Text style={styles.infoText}>
+                Enter at least one test result before sending the patient
+                for interpretation.
+              </Text>
+
+              {results.map((row, index) => (
+                <View key={row.id} style={styles.resultRow}>
+                  <View style={styles.resultHeader}>
+                    <Text style={styles.resultIndex}>
+                      Result #{index + 1}
+                    </Text>
+
+                    {results.length > 1 ? (
+                      <TouchableOpacity
+                        style={styles.removeButton}
+                        onPress={() => removeResult(index)}
+                        disabled={submittingAction}
+                      >
+                        <Text style={styles.removeText}>Remove</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+
+                  <Text style={styles.label}>Test Name</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={row.testName}
+                    onChangeText={(value) =>
+                      updateResult(index, "testName", value)
+                    }
+                    placeholder="e.g. Malaria Parasite"
+                    editable={!submittingAction}
+                  />
+
+                  <Text style={styles.label}>Result Value</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={row.resultValue}
+                    onChangeText={(value) =>
+                      updateResult(index, "resultValue", value)
+                    }
+                    placeholder="e.g. Positive"
+                    editable={!submittingAction}
+                  />
+
+                  <Text style={styles.label}>Result Status</Text>
+
+                  <View style={styles.statusRow}>
+                    {RESULT_STATUSES.map((statusOption) => {
+                      const active = row.status === statusOption.value;
+
+                      return (
+                        <TouchableOpacity
+                          key={statusOption.value}
+                          onPress={() =>
+                            updateResult(
+                              index,
+                              "status",
+                              statusOption.value
+                            )
+                          }
+                          style={[
+                            styles.statusButton,
+                            active && styles.statusButtonActive,
+                          ]}
+                          disabled={submittingAction}
+                        >
+                          <Text
+                            style={[
+                              styles.statusOptionText,
+                              active && styles.statusOptionTextActive,
+                            ]}
+                          >
+                            {statusOption.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+
+                  <Text style={styles.label}>Notes (optional)</Text>
+                  <TextInput
+                    style={[styles.input, styles.multilineInput]}
+                    value={row.notes}
+                    onChangeText={(value) =>
+                      updateResult(index, "notes", value)
+                    }
+                    placeholder="Optional comment for this result"
+                    multiline
+                    editable={!submittingAction}
+                  />
+                </View>
+              ))}
+
+              <TouchableOpacity
+                style={styles.addButton}
+                onPress={addResult}
+                disabled={submittingAction}
+              >
+                <Text style={styles.addButtonText}>
+                  + Add Another Result
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
 
           <TouchableOpacity
             style={[
@@ -521,7 +791,7 @@ export default function LaboratoryScreen() {
               Age: {patient.age ?? "—"}
             </Text>
 
-                        <Text style={styles.detail}>
+            <Text style={styles.detail}>
               Address: {patient.address || "—"}
             </Text>
 
@@ -529,8 +799,14 @@ export default function LaboratoryScreen() {
               Tribe: {patient.tribe || "—"}
             </Text>
 
-            <Text style={[styles.detail, { color: "#b91c1c", fontWeight: "bold" }]}>
-              🚨 Next of Kin: {patient.nextOfKinName || "—"} ({patient.nextOfKinPhone || "No phone"})
+            <Text
+              style={[
+                styles.detail,
+                { color: "#b91c1c", fontWeight: "bold" },
+              ]}
+            >
+              🚨 Next of Kin: {patient.nextOfKinName || "—"} (
+              {patient.nextOfKinPhone || "No phone"})
             </Text>
 
             <View style={styles.divider} />
@@ -545,7 +821,7 @@ export default function LaboratoryScreen() {
                 { backgroundColor: getStatusColor(visit.status) },
               ]}
             >
-              <Text style={styles.statusText}>
+              <Text style={styles.visitStatusText}>
                 {humanize(visit.status)}
               </Text>
             </View>
@@ -595,6 +871,46 @@ export default function LaboratoryScreen() {
                     Weight: {visit.vitals.weightKg} kg
                   </Text>
                 ) : null}
+              </>
+            ) : null}
+
+            {visit.labResults && visit.labResults.length > 0 ? (
+              <>
+                <View style={styles.divider} />
+
+                <Text style={styles.sectionLabel}>Entered Lab Results</Text>
+
+                {visit.labResults.map((result, index) => (
+                  <View
+                    key={`${result.testName}-${index}`}
+                    style={styles.resultPreview}
+                  >
+                    <Text style={styles.resultPreviewName}>
+                      {result.testName || "Unknown test"}
+                    </Text>
+
+                    <Text style={styles.resultPreviewValue}>
+                      {result.resultValue || "—"}
+                    </Text>
+
+                    <View
+                      style={[
+                        styles.resultStatusBadge,
+                        {
+                          backgroundColor: getResultColor(result.status),
+                        },
+                      ]}
+                    >
+                      <Text style={styles.resultStatusText}>
+                        {humanize(result.status)}
+                      </Text>
+                    </View>
+
+                    {result.notes ? (
+                      <Text style={styles.note}>{result.notes}</Text>
+                    ) : null}
+                  </View>
+                ))}
               </>
             ) : null}
 
@@ -718,6 +1034,35 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
+  labSection: {
+    backgroundColor: "#f9fafb",
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    marginBottom: 12,
+  },
+
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    marginTop: 0,
+    marginBottom: 8,
+  },
+
+  sectionLabel: {
+    fontSize: 15,
+    fontWeight: "bold",
+    marginBottom: 6,
+    color: "#111827",
+  },
+
+  infoText: {
+    fontSize: 13,
+    color: "#6b7280",
+    marginBottom: 12,
+  },
+
   label: {
     fontSize: 14,
     fontWeight: "600",
@@ -736,8 +1081,82 @@ const styles = StyleSheet.create({
   },
 
   multilineInput: {
-    minHeight: 100,
+    minHeight: 80,
     textAlignVertical: "top",
+  },
+
+  resultRow: {
+    backgroundColor: "#ffffff",
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    marginBottom: 12,
+  },
+
+  resultHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+
+  resultIndex: {
+    fontSize: 15,
+    fontWeight: "bold",
+    color: "#111827",
+  },
+
+  removeButton: {
+    backgroundColor: "#fee2e2",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+
+  removeText: {
+    color: "#b91c1c",
+    fontWeight: "600",
+  },
+
+  statusRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 12,
+  },
+
+  statusButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: "#e5e7eb",
+  },
+
+  statusButtonActive: {
+    backgroundColor: "#2563eb",
+  },
+
+  statusOptionText: {
+    color: "#111827",
+    fontWeight: "600",
+  },
+
+  statusOptionTextActive: {
+    color: "#ffffff",
+  },
+
+  addButton: {
+    backgroundColor: "#e5e7eb",
+    padding: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    marginBottom: 12,
+  },
+
+  addButtonText: {
+    color: "#111827",
+    fontWeight: "bold",
   },
 
   primaryButton: {
@@ -807,7 +1226,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
 
-  statusText: {
+  visitStatusText: {
     color: "#ffffff",
     fontWeight: "bold",
     fontSize: 13,
@@ -820,11 +1239,39 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
   },
 
-  sectionLabel: {
+  resultPreview: {
+    backgroundColor: "#f9fafb",
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    marginBottom: 10,
+  },
+
+  resultPreviewName: {
     fontSize: 15,
     fontWeight: "bold",
-    marginBottom: 6,
     color: "#111827",
+    marginBottom: 4,
+  },
+
+  resultPreviewValue: {
+    fontSize: 14,
+    color: "#374151",
+    marginBottom: 8,
+  },
+
+  resultStatusBadge: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+
+  resultStatusText: {
+    color: "#ffffff",
+    fontWeight: "bold",
+    fontSize: 12,
   },
 
   actionTitle: {

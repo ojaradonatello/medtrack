@@ -34,6 +34,13 @@ const DISCHARGE_STATUSES = [
   "other",
 ];
 
+const LAB_RESULT_STATUSES = [
+  "normal",
+  "abnormal",
+  "critical",
+  "pending",
+];
+
 const ALLOWED_MOVES = {
   registered: [
     "waiting_consultation",
@@ -493,6 +500,128 @@ function validateVisitSummary(summary) {
   };
 }
 
+function validateLabResults(results) {
+  if (results === undefined || results === null) {
+    return {
+      error: null,
+      data: null,
+    };
+  }
+
+  if (!Array.isArray(results)) {
+    return {
+      error: "labResults must be an array",
+      data: null,
+    };
+  }
+
+  if (results.length > 50) {
+    return {
+      error: "Too many lab results. Maximum is 50.",
+      data: null,
+    };
+  }
+
+  const cleaned = [];
+
+  for (let i = 0; i < results.length; i += 1) {
+    const item = results[i];
+
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      return {
+        error: `Lab result at position ${i + 1} must be an object`,
+        data: null,
+      };
+    }
+
+    const testName =
+      typeof item.testName === "string" ? item.testName.trim() : "";
+
+    const resultValue =
+      typeof item.resultValue === "string"
+        ? item.resultValue.trim()
+        : "";
+
+    if (!testName) {
+      return {
+        error: `Lab result at position ${i + 1} requires testName`,
+        data: null,
+      };
+    }
+
+    if (!resultValue) {
+      return {
+        error: `Lab result at position ${i + 1} requires resultValue`,
+        data: null,
+      };
+    }
+
+    let status = "normal";
+
+    if (
+      item.status !== undefined &&
+      item.status !== null &&
+      item.status !== ""
+    ) {
+      status = String(item.status).trim().toLowerCase();
+
+      if (!LAB_RESULT_STATUSES.includes(status)) {
+        return {
+          error: `Lab result status must be one of: ${LAB_RESULT_STATUSES.join(
+            ", "
+          )}`,
+          data: null,
+        };
+      }
+    }
+
+    const unit =
+      typeof item.unit === "string" ? item.unit.trim() : undefined;
+
+    const referenceRange =
+      typeof item.referenceRange === "string"
+        ? item.referenceRange.trim()
+        : undefined;
+
+    const notes =
+      typeof item.notes === "string" ? item.notes.trim() : undefined;
+
+    let performedAt = new Date();
+
+    if (
+      item.performedAt !== undefined &&
+      item.performedAt !== null &&
+      item.performedAt !== ""
+    ) {
+      const parsedDate = new Date(item.performedAt);
+
+      if (Number.isNaN(parsedDate.getTime())) {
+        return {
+          error: `Lab result at position ${i + 1} has an invalid performedAt date`,
+          data: null,
+        };
+      }
+
+      performedAt = parsedDate;
+    }
+
+    cleaned.push({
+      testName,
+      resultValue,
+      unit: unit || undefined,
+      referenceRange: referenceRange || undefined,
+      status,
+      notes: notes || undefined,
+      performedAt,
+    });
+  }
+
+  return {
+    error: null,
+    data: cleaned,
+  };
+}
+
 // ➕ Create Visit
 exports.createVisit = async (req, res) => {
   try {
@@ -566,6 +695,7 @@ exports.moveVisit = async (req, res) => {
   notes,
   vitals,
   visitSummary,
+  labResults,
 } = req.body;
 
     const vitalsCheck = validateVitals(vitals);
@@ -587,11 +717,22 @@ if (summaryCheck.error) {
 
 const summaryData = summaryCheck.data;
 
-   if (
+const labCheck = validateLabResults(labResults);
+
+if (labCheck.error) {
+  return res.status(400).json({
+    error: labCheck.error,
+  });
+}
+
+const labData = labCheck.data;
+
+  if (
   !status &&
   !currentDepartment &&
   !vitalsData &&
   !summaryData &&
+  labData === null &&
   notes === undefined
 ) {
   return res.status(400).json({
@@ -733,14 +874,24 @@ const summaryData = summaryCheck.data;
 }
 
 
+    if (labData !== null) {
+  visit.labResults = labData.map((item) => ({
+    ...item,
+    enteredBy: req.user?.id || req.user?._id,
+  }));
+}
+
     if (visit.status === "completed") {
       visit.completedAt = new Date();
     }
 
     await visit.save();
 
-    const updatedVisit = await Visit.findById(visit._id)
-      .populate("patient", "name phone gender age address tribe nextOfKinName nextOfKinPhone");
+       const updatedVisit = await Visit.findById(visit._id)
+      .populate(
+        "patient",
+        "name phone gender age address tribe nextOfKinName nextOfKinPhone"
+      );
 
     // Create audit log, but do not block the main workflow if logging fails
     try {
@@ -768,9 +919,14 @@ const summaryData = summaryCheck.data;
       if (notes !== undefined) {
         descriptionParts.push("notes updated");
       }
+
       if (summaryData) {
-  descriptionParts.push("visit summary updated");
-  }
+        descriptionParts.push("visit summary updated");
+      }
+
+      if (labData !== null) {
+        descriptionParts.push("lab results updated");
+      }
 
       await ActivityLog.create({
         actor: req.user.id,
@@ -785,14 +941,15 @@ const summaryData = summaryCheck.data;
             ? descriptionParts.join("; ")
             : "visit updated",
         changes: {
-  fromStatus: oldStatus,
-  toStatus: visit.status,
-  fromDepartment: oldDepartment,
-  toDepartment: visit.currentDepartment,
-  notesUpdated: notes !== undefined,
-  vitalsUpdated: !!vitalsData,
-  summaryUpdated: !!summaryData,
-},
+          fromStatus: oldStatus,
+          toStatus: visit.status,
+          fromDepartment: oldDepartment,
+          toDepartment: visit.currentDepartment,
+          notesUpdated: notes !== undefined,
+          vitalsUpdated: !!vitalsData,
+          summaryUpdated: !!summaryData,
+          labResultsUpdated: labData !== null,
+        },
       });
     } catch (logErr) {
       console.log("Activity log error:", logErr.message);

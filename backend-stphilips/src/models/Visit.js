@@ -35,6 +35,63 @@ const DISCHARGE_STATUSES = [
   "other",
 ];
 
+const LAB_RESULT_STATUSES = [
+  "normal",
+  "abnormal",
+  "critical",
+  "pending",
+];
+
+const labResultSchema = new Schema(
+  {
+    testName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    resultValue: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    unit: {
+      type: String,
+      trim: true,
+    },
+
+    referenceRange: {
+      type: String,
+      trim: true,
+    },
+
+    status: {
+      type: String,
+      enum: LAB_RESULT_STATUSES,
+      default: "normal",
+    },
+
+    notes: {
+      type: String,
+      trim: true,
+    },
+
+    performedAt: {
+      type: Date,
+      default: Date.now,
+    },
+
+    enteredBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+    },
+  },
+  {
+    _id: false,
+  }
+);
+
 const visitSummarySchema = new Schema(
   {
     diagnosis: {
@@ -125,6 +182,11 @@ const visitSchema = new Schema(
     notes: {
       type: String,
       trim: true,
+    },
+
+    labResults: {
+      type: [labResultSchema],
+      default: [],
     },
 
     visitSummary: {
