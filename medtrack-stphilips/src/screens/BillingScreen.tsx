@@ -371,12 +371,27 @@ export default function BillingScreen() {
         });
 
         paymentRecorded = true;
+        paymentRecorded = true;
 
         const payment = paymentRes.data?.payment;
+        const paymentId = payment?._id;
 
         paymentMessage = ` Payment recorded: ${formatMoney(
           payment?.amountPaid
         )} (${humanize(payment?.status)}).`;
+
+        if (paymentId) {
+          setTimeout(() => {
+            router.push(`/receipt?id=${paymentId}`);
+          }, 800);
+        }
+
+if (paymentId) {
+  setTimeout(() => {
+    router.push(`/receipt?id=${paymentId}`);
+  }, 800);
+}
+     
       } catch (err: any) {
         const status = err?.response?.status;
         const message =

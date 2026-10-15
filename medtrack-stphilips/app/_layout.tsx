@@ -597,12 +597,19 @@ export default function Layout() {
                 }}
               />
               <Drawer.Screen
-                name="payments"
-                options={{
-                  title: "Payments & Income",
+              name="payments"
+              options={{
+                title: "Payments & Income",
                 }}
               />
               
+              <Drawer.Screen
+               name="receipt"
+               options={{
+                  title: "Receipt",
+                 }}
+                 />
+                 
                <Drawer.Screen
                 name="attendance"
                 options={{

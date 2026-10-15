@@ -8,6 +8,7 @@ const {
   createPayment,
   getPayments,
   getSummary,
+  getPayment,
 } = require("../controllers/paymentController");
 
 function allowBillingOrAdmin(req, res, next) {
@@ -23,8 +24,9 @@ function allowBillingOrAdmin(req, res, next) {
 }
 
 router.use(authenticate);
-
 router.get("/summary", allowBillingOrAdmin, getSummary);
+
+router.get("/:id", allowBillingOrAdmin, getPayment);
 
 router.get("/", allowBillingOrAdmin, getPayments);
 

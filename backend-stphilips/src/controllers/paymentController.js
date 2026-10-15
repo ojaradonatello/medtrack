@@ -310,6 +310,7 @@ exports.getSummary = async (req, res) => {
             count: { $sum: 1 },
           },
         },
+        
       ]),
 
       Payment.aggregate([
@@ -450,6 +451,32 @@ exports.getSummary = async (req, res) => {
 
     return res.status(500).json({
       error: err.message || "Failed to load payment summary",
+    });
+  }
+};
+
+// GET /api/payments/:id
+exports.getPayment = async (req, res) => {
+  try {
+    const payment = await Payment.findById(req.params.id)
+      .populate("visit", "visitNumber status currentDepartment patient")
+      .populate("patient", "name phone gender age address tribe nextOfKinName nextOfKinPhone")
+      .populate("collectedBy", "name email role");
+
+    if (!payment) {
+      return res.status(404).json({
+        error: "Payment not found",
+      });
+    }
+
+    return res.json({
+      payment,
+    });
+  } catch (err) {
+    console.log("GET SINGLE PAYMENT ERROR:", err);
+
+    return res.status(500).json({
+      error: err.message || "Failed to load payment",
     });
   }
 };

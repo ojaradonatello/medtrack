@@ -717,6 +717,17 @@ export default function PaymentsScreen() {
                 Note: {payment.note}
               </Text>
             ) : null}
+
+            <TouchableOpacity
+  style={styles.receiptButton}
+  onPress={() =>
+    router.push(`/receipt?id=${payment._id}`)
+  }
+>
+  <Text style={styles.receiptButtonText}>
+    🧾 View Receipt
+  </Text>
+</TouchableOpacity>
           </View>
         );
       })}
@@ -954,6 +965,23 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#6b7280",
     fontStyle: "italic",
+    receiptButton: {
+  backgroundColor: "#1e3a5f",
+  padding: 12,
+  borderRadius: 10,
+  alignItems: "center",
+  marginTop: 10,
+},
+
+receiptButtonText: {
+  color: "#ffffff",
+  fontWeight: "bold",
+  fontSize: 14,
+},
+    
+
+
+    
   },
 
   collectorRow: {
