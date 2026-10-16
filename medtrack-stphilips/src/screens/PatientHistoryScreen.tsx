@@ -429,6 +429,45 @@ export default function PatientHistoryScreen() {
                         Quantity: {rx.quantity ?? "—"}
                       </Text>
 
+                      <Text
+                        style={[
+                          styles.detail,
+                          {
+                            color: rx.dispensed
+                              ? "#15803d"
+                              : Number(rx.dispensedQuantity || 0) > 0
+                              ? "#b45309"
+                              : "#6b7280",
+                            fontWeight: "600",
+                          },
+                        ]}
+                      >
+                        Dispensed:{" "}
+                        {rx.dispensed
+                          ? "Yes"
+                          : Number(rx.dispensedQuantity || 0) > 0
+                          ? "Partial"
+                          : "No"}
+                      </Text>
+
+                      {Number(rx.dispensedQuantity || 0) > 0 ? (
+                        <Text style={styles.detail}>
+                          Dispensed Quantity: {rx.dispensedQuantity}
+                        </Text>
+                      ) : null}
+
+                      {rx.dispensedAt ? (
+                        <Text style={styles.detail}>
+                          Dispensed At: {formatDate(rx.dispensedAt)}
+                        </Text>
+                      ) : null}
+
+                      {rx.dispensedByName ? (
+                        <Text style={styles.detail}>
+                          Dispensed By: {rx.dispensedByName}
+                        </Text>
+                      ) : null}
+
                       {rx.dosage ? (
                         <Text style={styles.detail}>
                           Dosage: {rx.dosage}

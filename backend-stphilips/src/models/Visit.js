@@ -140,6 +140,32 @@ const prescriptionSchema = new Schema(
       type: Date,
       default: Date.now,
     },
+
+    dispensed: {
+      type: Boolean,
+      default: false,
+    },
+
+    dispensedQuantity: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+
+    dispensedAt: {
+      type: Date,
+      default: null,
+    },
+
+    dispensedBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+    },
+
+    dispensedByName: {
+      type: String,
+      trim: true,
+    },
   },
   {
     _id: false,

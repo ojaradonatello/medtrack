@@ -10,8 +10,22 @@ const DISPENSE_ROLES = ["admin", "pharmacist"];
 
 router.use(authenticate);
 
-router.get("/queue", authorize(...DISPENSE_ROLES), dispenseController.getDispenseQueue);
+router.get(
+  "/queue",
+  authorize(...DISPENSE_ROLES),
+  dispenseController.getDispenseQueue
+);
 
-router.post("/", authorize(...DISPENSE_ROLES), dispenseController.dispenseDrug);
+router.post(
+  "/prescription",
+  authorize(...DISPENSE_ROLES),
+  dispenseController.dispensePrescription
+);
+
+router.post(
+  "/",
+  authorize(...DISPENSE_ROLES),
+  dispenseController.dispenseDrug
+);
 
 module.exports = router;
