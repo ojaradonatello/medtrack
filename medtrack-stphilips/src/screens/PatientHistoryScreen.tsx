@@ -407,6 +407,64 @@ export default function PatientHistoryScreen() {
               </>
             ) : null}
 
+
+                      {visit.prescriptions && visit.prescriptions.length > 0 ? (
+              <>
+                <View style={styles.divider} />
+
+                <Text style={styles.sectionLabel}>Prescriptions</Text>
+
+                {visit.prescriptions.map(
+                  (rx: any, rxIndex: number) => (
+                    <View
+                      key={`${rx.drugName || "rx"}-${rxIndex}`}
+                      style={styles.resultPreview}
+                    >
+                      <Text style={styles.resultPreviewName}>
+                        {rx.drugName || "Unknown medicine"}
+                        {rx.strength ? ` ${rx.strength}` : ""}
+                      </Text>
+
+                      <Text style={styles.resultPreviewValue}>
+                        Quantity: {rx.quantity ?? "—"}
+                      </Text>
+
+                      {rx.dosage ? (
+                        <Text style={styles.detail}>
+                          Dosage: {rx.dosage}
+                        </Text>
+                      ) : null}
+
+                      {rx.frequency ? (
+                        <Text style={styles.detail}>
+                          Frequency: {rx.frequency}
+                        </Text>
+                      ) : null}
+
+                      {rx.duration ? (
+                        <Text style={styles.detail}>
+                          Duration: {rx.duration}
+                        </Text>
+                      ) : null}
+
+                      {rx.instructions ? (
+                        <Text style={styles.note}>
+                          Instructions: {rx.instructions}
+                        </Text>
+                      ) : null}
+
+                      {rx.prescribedAt ? (
+                        <Text style={styles.detail}>
+                          Prescribed: {formatDate(rx.prescribedAt)}
+                        </Text>
+                      ) : null}
+                    </View>
+                  )
+                )}
+              </>
+            ) : null}
+
+
             {visit.visitSummary &&
             Object.keys(visit.visitSummary).length > 0 ? (
               <>

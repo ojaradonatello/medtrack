@@ -622,6 +622,128 @@ function validateLabResults(results) {
   };
 }
 
+function validatePrescriptions(items) {
+  if (items === undefined || items === null) {
+    return {
+      error: null,
+      data: null,
+    };
+  }
+
+  if (!Array.isArray(items)) {
+    return {
+      error: "prescriptions must be an array",
+      data: null,
+    };
+  }
+
+  if (items.length > 50) {
+    return {
+      error: "Too many prescriptions. Maximum is 50.",
+      data: null,
+    };
+  }
+
+  const cleaned = [];
+
+  for (let i = 0; i < items.length; i += 1) {
+    const item = items[i];
+
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      return {
+        error: `Prescription at position ${i + 1} must be an object`,
+        data: null,
+      };
+    }
+
+    const drugName =
+      typeof item.drugName === "string" ? item.drugName.trim() : "";
+
+    if (!drugName) {
+      return {
+        error: `Prescription at position ${i + 1} requires drug name`,
+        data: null,
+      };
+    }
+
+    const quantity = Number(item.quantity);
+
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      return {
+        error: `Prescription at position ${i + 1} requires a valid quantity greater than zero`,
+        data: null,
+      };
+    }
+
+    const strength =
+      typeof item.strength === "string" ? item.strength.trim() : "";
+
+    const dosage =
+      typeof item.dosage === "string" ? item.dosage.trim() : "";
+
+    const frequency =
+      typeof item.frequency === "string" ? item.frequency.trim() : "";
+
+    const duration =
+      typeof item.duration === "string" ? item.duration.trim() : "";
+
+    const instructions =
+      typeof item.instructions === "string"
+        ? item.instructions.trim()
+        : "";
+
+    if (strength.length > 100) {
+      return {
+        error: `Prescription strength at position ${i + 1} is too long`,
+        data: null,
+      };
+    }
+
+    if (dosage.length > 200) {
+      return {
+        error: `Prescription dosage at position ${i + 1} is too long`,
+        data: null,
+      };
+    }
+
+    if (frequency.length > 200) {
+      return {
+        error: `Prescription frequency at position ${i + 1} is too long`,
+        data: null,
+      };
+    }
+
+    if (duration.length > 200) {
+      return {
+        error: `Prescription duration at position ${i + 1} is too long`,
+        data: null,
+      };
+    }
+
+    if (instructions.length > 1000) {
+      return {
+        error: `Prescription instructions at position ${i + 1} are too long`,
+        data: null,
+      };
+    }
+
+    cleaned.push({
+      drugName,
+      strength: strength || undefined,
+      quantity,
+      dosage: dosage || undefined,
+      frequency: frequency || undefined,
+      duration: duration || undefined,
+      instructions: instructions || undefined,
+    });
+  }
+
+  return {
+    error: null,
+    data: cleaned,
+  };
+}
+
 // ➕ Create Visit
 exports.createVisit = async (req, res) => {
   try {
@@ -690,13 +812,14 @@ exports.moveVisit = async (req, res) => {
     }
 
     const {
-  status,
-  currentDepartment,
-  notes,
-  vitals,
-  visitSummary,
-  labResults,
-} = req.body;
+      status,
+      currentDepartment,
+      notes,
+      vitals,
+      visitSummary,
+      labResults,
+      prescriptions,
+    } = req.body;
 
     const vitalsCheck = validateVitals(vitals);
 
@@ -707,39 +830,62 @@ exports.moveVisit = async (req, res) => {
     }
 
     const vitalsData = vitalsCheck.data;
+
     const summaryCheck = validateVisitSummary(visitSummary);
 
-if (summaryCheck.error) {
-  return res.status(400).json({
-    error: summaryCheck.error,
-  });
-}
+    if (summaryCheck.error) {
+      return res.status(400).json({
+        error: summaryCheck.error,
+      });
+    }
 
-const summaryData = summaryCheck.data;
+    const summaryData = summaryCheck.data;
 
-const labCheck = validateLabResults(labResults);
+    const labCheck = validateLabResults(labResults);
 
-if (labCheck.error) {
-  return res.status(400).json({
-    error: labCheck.error,
-  });
-}
+    if (labCheck.error) {
+      return res.status(400).json({
+        error: labCheck.error,
+      });
+    }
 
-const labData = labCheck.data;
+    const labData = labCheck.data;
 
-  if (
-  !status &&
-  !currentDepartment &&
-  !vitalsData &&
-  !summaryData &&
-  labData === null &&
-  notes === undefined
-) {
-  return res.status(400).json({
-    error:
-      "Provide status, currentDepartment, vitals, notes, or visitSummary to update visit",
-  });
-}
+    const prescriptionCheck = validatePrescriptions(prescriptions);
+
+    if (prescriptionCheck.error) {
+      return res.status(400).json({
+        error: prescriptionCheck.error,
+      });
+    }
+
+    const prescriptionData = prescriptionCheck.data;
+
+    if (
+      prescriptions !== undefined &&
+      prescriptions !== null &&
+      role !== "admin" &&
+      role !== "doctor"
+    ) {
+      return res.status(403).json({
+        error: "Only doctors and administrators can write prescriptions",
+      });
+    }
+
+    if (
+      !status &&
+      !currentDepartment &&
+      !vitalsData &&
+      !summaryData &&
+      labData === null &&
+      prescriptionData === null &&
+      notes === undefined
+    ) {
+      return res.status(400).json({
+        error:
+          "Provide status, currentDepartment, vitals, notes, visitSummary, labResults, or prescriptions to update visit",
+      });
+    }
 
     const visit = await Visit.findById(req.params.id);
 
@@ -841,45 +987,52 @@ const labData = labCheck.data;
     }
 
     if (summaryData) {
-  if (!visit.visitSummary) {
-    visit.visitSummary = {};
-  }
+      if (!visit.visitSummary) {
+        visit.visitSummary = {};
+      }
 
-  if (summaryData.diagnosis !== undefined) {
-    visit.visitSummary.diagnosis = summaryData.diagnosis;
-  }
+      if (summaryData.diagnosis !== undefined) {
+        visit.visitSummary.diagnosis = summaryData.diagnosis;
+      }
 
-  if (summaryData.treatmentGiven !== undefined) {
-    visit.visitSummary.treatmentGiven = summaryData.treatmentGiven;
-  }
+      if (summaryData.treatmentGiven !== undefined) {
+        visit.visitSummary.treatmentGiven = summaryData.treatmentGiven;
+      }
 
-  if (summaryData.advice !== undefined) {
-    visit.visitSummary.advice = summaryData.advice;
-  }
+      if (summaryData.advice !== undefined) {
+        visit.visitSummary.advice = summaryData.advice;
+      }
 
-  if (summaryData.summaryNote !== undefined) {
-    visit.visitSummary.summaryNote = summaryData.summaryNote;
-  }
+      if (summaryData.summaryNote !== undefined) {
+        visit.visitSummary.summaryNote = summaryData.summaryNote;
+      }
 
-  if (summaryData.dischargeStatus !== undefined) {
-    visit.visitSummary.dischargeStatus = summaryData.dischargeStatus;
-  }
+      if (summaryData.dischargeStatus !== undefined) {
+        visit.visitSummary.dischargeStatus = summaryData.dischargeStatus;
+      }
 
-  if (summaryData.followUpDate !== undefined) {
-    visit.visitSummary.followUpDate = summaryData.followUpDate;
-  }
+      if (summaryData.followUpDate !== undefined) {
+        visit.visitSummary.followUpDate = summaryData.followUpDate;
+      }
 
-  visit.visitSummary.createdBy = req.user?.id || req.user?._id;
-  visit.visitSummary.createdAt = new Date();
-}
-
+      visit.visitSummary.createdBy = req.user?.id || req.user?._id;
+      visit.visitSummary.createdAt = new Date();
+    }
 
     if (labData !== null) {
-  visit.labResults = labData.map((item) => ({
-    ...item,
-    enteredBy: req.user?.id || req.user?._id,
-  }));
-}
+      visit.labResults = labData.map((item) => ({
+        ...item,
+        enteredBy: req.user?.id || req.user?._id,
+      }));
+    }
+
+    if (prescriptionData !== null) {
+      visit.prescriptions = prescriptionData.map((item) => ({
+        ...item,
+        prescribedBy: req.user?.id || req.user?._id,
+        prescribedAt: new Date(),
+      }));
+    }
 
     if (visit.status === "completed") {
       visit.completedAt = new Date();
@@ -887,13 +1040,12 @@ const labData = labCheck.data;
 
     await visit.save();
 
-       const updatedVisit = await Visit.findById(visit._id)
+    const updatedVisit = await Visit.findById(visit._id)
       .populate(
         "patient",
         "name phone gender age address tribe nextOfKinName nextOfKinPhone"
       );
 
-    // Create audit log, but do not block the main workflow if logging fails
     try {
       const action =
         status && status !== oldStatus ? "visit_moved" : "visit_updated";
@@ -928,8 +1080,12 @@ const labData = labCheck.data;
         descriptionParts.push("lab results updated");
       }
 
+      if (prescriptionData !== null) {
+        descriptionParts.push("prescriptions updated");
+      }
+
       await ActivityLog.create({
-        actor: req.user.id,
+        actor: req.user?.id || req.user?._id,
         actorRole: role,
         action,
         entityType: "Visit",
@@ -949,6 +1105,7 @@ const labData = labCheck.data;
           vitalsUpdated: !!vitalsData,
           summaryUpdated: !!summaryData,
           labResultsUpdated: labData !== null,
+          prescriptionUpdated: prescriptionData !== null,
         },
       });
     } catch (logErr) {

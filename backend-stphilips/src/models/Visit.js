@@ -92,6 +92,60 @@ const labResultSchema = new Schema(
   }
 );
 
+const prescriptionSchema = new Schema(
+  {
+    drugName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    strength: {
+      type: String,
+      trim: true,
+    },
+
+    quantity: {
+      type: Number,
+      required: true,
+      min: [1, "Prescription quantity must be at least 1"],
+    },
+
+    dosage: {
+      type: String,
+      trim: true,
+    },
+
+    frequency: {
+      type: String,
+      trim: true,
+    },
+
+    duration: {
+      type: String,
+      trim: true,
+    },
+
+    instructions: {
+      type: String,
+      trim: true,
+    },
+
+    prescribedBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+    },
+
+    prescribedAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  {
+    _id: false,
+  }
+);
+
 const visitSummarySchema = new Schema(
   {
     diagnosis: {
@@ -186,6 +240,11 @@ const visitSchema = new Schema(
 
     labResults: {
       type: [labResultSchema],
+      default: [],
+    },
+
+    prescriptions: {
+      type: [prescriptionSchema],
       default: [],
     },
 

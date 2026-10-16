@@ -31,6 +31,21 @@ type Patient = {
   gender?: string;
   age?: number;
   address?: string;
+  tribe?: string;
+  nextOfKinName?: string;
+  nextOfKinPhone?: string;
+};
+
+type Prescription = {
+  drugName?: string;
+  strength?: string;
+  quantity?: number;
+  dosage?: string;
+  frequency?: string;
+  duration?: string;
+  instructions?: string;
+  prescribedBy?: string;
+  prescribedAt?: string;
 };
 
 type Visit = {
@@ -43,7 +58,8 @@ type Visit = {
   startedAt?: string;
   updatedAt?: string;
   patient?: Patient;
-   vitals?: {
+  prescriptions?: Prescription[];
+  vitals?: {
     bloodPressure?: {
       systolic?: number;
       diastolic?: number;
@@ -52,18 +68,8 @@ type Visit = {
     pulseBpm?: number;
     weightKg?: number;
   };
-
-  visitSummary?: {
-    diagnosis?: string;
-    treatmentGiven?: string;
-    advice?: string;
-    dischargeStatus?: string;
-    summaryNote?: string;
-    followUpDate?: string;
-    createdBy?: string;
-    createdAt?: string;
-  } | null;
 };
+
 type PendingAction = {
   visitId: string;
   status: string;
@@ -71,27 +77,20 @@ type PendingAction = {
   patientName: string;
 };
 
-const DISCHARGE_STATUSES = [
-  { value: "improved", label: "Improved" },
-  { value: "stable", label: "Stable" },
-  { value: "referred", label: "Referred" },
-  { value: "admitted", label: "Admitted" },
-  { value: "discharged", label: "Discharged" },
-  { value: "other", label: "Other" },
-];
+type PrescriptionInput = {
+  id: string;
+  drugName: string;
+  strength: string;
+  quantity: string;
+  dosage: string;
+  frequency: string;
+  duration: string;
+  instructions: string;
+};
 
 const CONSULTATION_STATUSES = [
   "waiting_consultation",
   "in_consultation",
-];
-
-const DOCTOR_ALLOWED_TARGETS = [
-  "in_consultation",
-  "waiting_lab",
-  "waiting_billing",
-  "waiting_dispensary",
-  "completed",
-  "cancelled",
 ];
 
 const MOVES_BY_STATUS: Record<string, string[]> = {
@@ -125,11 +124,25 @@ const ACTION_NOTES: Record<string, string> = {
   in_consultation: "Doctor started consultation",
   waiting_lab: "Doctor sent patient to laboratory",
   waiting_billing: "Doctor sent patient to billing",
-  waiting_dispensary: "Doctor sent patient to dispensary",
+  waiting_dispensary:
+    "Doctor prescribed medication and sent to dispensary",
   completed: "Consultation completed and visit closed",
   cancelled: "Visit cancelled during consultation",
   no_show: "Patient did not attend consultation",
 };
+
+function makeEmptyPrescription(): PrescriptionInput {
+  return {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    drugName: "",
+    strength: "",
+    quantity: "",
+    dosage: "",
+    frequency: "",
+    duration: "",
+    instructions: "",
+  };
+}
 
 function humanize(value?: string) {
   if (!value) return "—";
@@ -173,27 +186,6 @@ function getStatusColor(status: string) {
   }
 }
 
-function getActionButtonColor(status: string) {
-  switch (status) {
-    case "in_consultation":
-      return "#7c3aed";
-    case "waiting_lab":
-      return "#0891b2";
-    case "waiting_billing":
-      return "#ca8a04";
-    case "waiting_dispensary":
-      return "#16a34a";
-    case "completed":
-      return "#15803d";
-    case "cancelled":
-      return "#dc2626";
-    case "no_show":
-      return "#6b7280";
-    default:
-      return "#2563eb";
-  }
-}
-
 function showMessage(title: string, message: string) {
   if (
     Platform.OS === "web" &&
@@ -206,13 +198,11 @@ function showMessage(title: string, message: string) {
 }
 
 function toNumber(value: string) {
-  const trimmed = value.trim();
-
-  if (!trimmed) {
+  if (value === undefined || value === null || value.trim() === "") {
     return undefined;
   }
 
-  const num = Number(trimmed);
+  const num = Number(value);
 
   if (Number.isNaN(num)) {
     return null;
@@ -231,9 +221,7 @@ function getAllowedActions(role?: string, currentStatus?: string) {
   }
 
   if (role === "doctor") {
-    return moves.filter((status) =>
-      DOCTOR_ALLOWED_TARGETS.includes(status)
-    );
+    return moves;
   }
 
   return [];
@@ -259,11 +247,15 @@ export default function ConsultationScreen() {
   const [temperature, setTemperature] = useState("");
   const [pulse, setPulse] = useState("");
   const [weight, setWeight] = useState("");
+
   const [diagnosis, setDiagnosis] = useState("");
   const [treatmentGiven, setTreatmentGiven] = useState("");
   const [advice, setAdvice] = useState("");
   const [dischargeStatus, setDischargeStatus] = useState("improved");
-  
+
+  const [prescriptions, setPrescriptions] = useState<PrescriptionInput[]>([
+    makeEmptyPrescription(),
+  ]);
 
   const canConsult =
     user?.role === "admin" || user?.role === "doctor";
@@ -349,18 +341,20 @@ export default function ConsultationScreen() {
   }, [loadVisits]);
 
   const resetAction = () => {
-  setPendingAction(null);
-  setActionNotes("");
-  setSystolic("");
-  setDiastolic("");
-  setTemperature("");
-  setPulse("");
-  setWeight("");
-  setDiagnosis("");
-  setTreatmentGiven("");
-  setAdvice("");
-  setDischargeStatus("improved");
-};
+    setPendingAction(null);
+    setActionNotes("");
+    setSystolic("");
+    setDiastolic("");
+    setTemperature("");
+    setPulse("");
+    setWeight("");
+    setDiagnosis("");
+    setTreatmentGiven("");
+    setAdvice("");
+    setDischargeStatus("improved");
+    setPrescriptions([makeEmptyPrescription()]);
+  };
+
   const openAction = (visit: Visit, status: string) => {
     const label = ACTION_LABELS[status] || humanize(status);
 
@@ -404,9 +398,42 @@ export default function ConsultationScreen() {
     );
 
     setDiagnosis("");
-setTreatmentGiven("");
-setAdvice("");
-setDischargeStatus("improved");
+    setTreatmentGiven("");
+    setAdvice("");
+    setDischargeStatus("improved");
+
+    if (status === "waiting_dispensary") {
+      setPrescriptions([makeEmptyPrescription()]);
+    } else {
+      setPrescriptions([]);
+    }
+  };
+
+  const addPrescription = () => {
+    setPrescriptions((prev) => [...prev, makeEmptyPrescription()]);
+  };
+
+  const removePrescription = (index: number) => {
+    setPrescriptions((prev) =>
+      prev.length > 1 ? prev.filter((_, i) => i !== index) : prev
+    );
+  };
+
+  const updatePrescription = (
+    index: number,
+    field: keyof PrescriptionInput,
+    value: string
+  ) => {
+    setPrescriptions((prev) =>
+      prev.map((row, i) =>
+        i === index
+          ? {
+              ...row,
+              [field]: value,
+            }
+          : row
+      )
+    );
   };
 
   const buildVitalsPayload = () => {
@@ -508,23 +535,107 @@ setDischargeStatus("improved");
     };
   };
 
+  const buildPrescriptionsPayload = (): {
+    error: string | null;
+    data: any[] | null | undefined;
+  } => {
+    if (!pendingAction) {
+      return { error: null, data: undefined };
+    }
+
+    if (pendingAction.status !== "waiting_dispensary") {
+      return { error: null, data: undefined };
+    }
+
+    const cleaned = prescriptions
+      .map((row) => ({
+        drugName: row.drugName.trim(),
+        strength: row.strength.trim(),
+        quantity: row.quantity.trim(),
+        dosage: row.dosage.trim(),
+        frequency: row.frequency.trim(),
+        duration: row.duration.trim(),
+        instructions: row.instructions.trim(),
+      }))
+      .filter(
+        (row) =>
+          row.drugName ||
+          row.quantity ||
+          row.strength ||
+          row.dosage ||
+          row.frequency ||
+          row.duration ||
+          row.instructions
+      );
+
+    if (cleaned.length === 0) {
+      return {
+        error:
+          "Add at least one prescription before sending the patient to dispensary.",
+        data: null,
+      };
+    }
+
+    for (const row of cleaned) {
+      if (!row.drugName) {
+        return {
+          error: "Each prescription needs a drug name.",
+          data: null,
+        };
+      }
+
+      const quantity = Number(row.quantity);
+
+      if (!Number.isFinite(quantity) || quantity <= 0) {
+        return {
+          error:
+            "Each prescription needs a valid quantity greater than zero.",
+          data: null,
+        };
+      }
+    }
+
+    return {
+      error: null,
+      data: cleaned.map((row) => ({
+        drugName: row.drugName,
+        strength: row.strength || undefined,
+        quantity: Number(row.quantity),
+        dosage: row.dosage || undefined,
+        frequency: row.frequency || undefined,
+        duration: row.duration || undefined,
+        instructions: row.instructions || undefined,
+      })),
+    };
+  };
+
   const confirmAction = async () => {
     if (!pendingAction) {
       return;
     }
 
-    if (pendingAction.status === "completed" && !diagnosis.trim()) {
-  showMessage(
-    "Summary required",
-    "Enter diagnosis before completing the visit."
-  );
-  return;
-}
-
     const vitalsResult = buildVitalsPayload();
 
     if (vitalsResult.error) {
       showMessage("Invalid vitals", vitalsResult.error);
+      return;
+    }
+
+    if (pendingAction.status === "completed" && !diagnosis.trim()) {
+      showMessage(
+        "Summary required",
+        "Enter diagnosis before completing the visit."
+      );
+      return;
+    }
+
+    const prescriptionResult = buildPrescriptionsPayload();
+
+    if (prescriptionResult.error) {
+      showMessage(
+        "Prescription required",
+        prescriptionResult.error
+      );
       return;
     }
 
@@ -536,19 +647,23 @@ setDischargeStatus("improved");
         "Consultation action",
     };
 
-   if (vitalsResult.vitals) {
-  payload.vitals = vitalsResult.vitals;
-}
+    if (vitalsResult.vitals) {
+      payload.vitals = vitalsResult.vitals;
+    }
 
-if (pendingAction.status === "completed") {
-  payload.visitSummary = {
-    diagnosis: diagnosis.trim(),
-    treatmentGiven: treatmentGiven.trim() || undefined,
-    advice: advice.trim() || undefined,
-    dischargeStatus,
-    summaryNote: actionNotes.trim() || undefined,
-  };
-}
+    if (pendingAction.status === "completed") {
+      payload.visitSummary = {
+        diagnosis: diagnosis.trim(),
+        treatmentGiven: treatmentGiven.trim() || undefined,
+        advice: advice.trim() || undefined,
+        dischargeStatus,
+        summaryNote: actionNotes.trim() || undefined,
+      };
+    }
+
+    if (prescriptionResult.data) {
+      payload.prescriptions = prescriptionResult.data;
+    }
 
     try {
       setSubmittingAction(true);
@@ -674,8 +789,9 @@ if (pendingAction.status === "completed") {
       <Text style={styles.title}>👨‍⚕️ Consultation</Text>
 
       <Text style={styles.subtitle}>
-        Review patients waiting for doctor consultation, update vitals, and
-        route patients to laboratory, billing, dispensary, or completion.
+        Review patients waiting for doctor consultation, update vitals, write
+        prescriptions, and route patients to laboratory, billing, dispensary,
+        or completion.
       </Text>
 
       <Text style={styles.metaText}>
@@ -722,73 +838,212 @@ if (pendingAction.status === "completed") {
             multiline
             editable={!submittingAction}
           />
-       
+
           {pendingAction.status === "completed" ? (
-  <View style={styles.summarySection}>
-    <Text style={styles.sectionTitle}>
-      Visit Summary / Discharge Note
-    </Text>
+            <View style={styles.summarySection}>
+              <Text style={styles.sectionTitle}>
+                Visit Summary / Discharge Note
+              </Text>
 
-    <Text style={styles.label}>Diagnosis *</Text>
-    <TextInput
-      style={[styles.input, styles.multilineInput]}
-      value={diagnosis}
-      onChangeText={setDiagnosis}
-      placeholder="Enter main diagnosis"
-      multiline
-      editable={!submittingAction}
-    />
+              <Text style={styles.label}>Diagnosis *</Text>
+              <TextInput
+                style={[styles.input, styles.multilineInput]}
+                value={diagnosis}
+                onChangeText={setDiagnosis}
+                placeholder="Enter main diagnosis"
+                multiline
+                editable={!submittingAction}
+              />
 
-    <Text style={styles.label}>Treatment Given</Text>
-    <TextInput
-      style={[styles.input, styles.multilineInput]}
-      value={treatmentGiven}
-      onChangeText={setTreatmentGiven}
-      placeholder="Enter treatment given, medication, procedure, or plan"
-      multiline
-      editable={!submittingAction}
-    />
+              <Text style={styles.label}>Treatment Given</Text>
+              <TextInput
+                style={[styles.input, styles.multilineInput]}
+                value={treatmentGiven}
+                onChangeText={setTreatmentGiven}
+                placeholder="Enter treatment given, medication, procedure, or plan"
+                multiline
+                editable={!submittingAction}
+              />
 
-    <Text style={styles.label}>Advice / Follow-up</Text>
-    <TextInput
-      style={[styles.input, styles.multilineInput]}
-      value={advice}
-      onChangeText={setAdvice}
-      placeholder="Enter patient advice, return date, warning signs, or follow-up plan"
-      multiline
-      editable={!submittingAction}
-    />
+              <Text style={styles.label}>Advice / Follow-up</Text>
+              <TextInput
+                style={[styles.input, styles.multilineInput]}
+                value={advice}
+                onChangeText={setAdvice}
+                placeholder="Enter patient advice, return date, warning signs, or follow-up plan"
+                multiline
+                editable={!submittingAction}
+              />
 
-    <Text style={styles.label}>Discharge Status</Text>
+              <Text style={styles.label}>Discharge Status</Text>
 
-    <View style={styles.statusRow}>
-      {DISCHARGE_STATUSES.map((item) => {
-        const active = dischargeStatus === item.value;
+              <View style={styles.statusRow}>
+                {[
+                  { value: "improved", label: "Improved" },
+                  { value: "stable", label: "Stable" },
+                  { value: "referred", label: "Referred" },
+                  { value: "admitted", label: "Admitted" },
+                  { value: "discharged", label: "Discharged" },
+                  { value: "other", label: "Other" },
+                ].map((item) => {
+                  const active = dischargeStatus === item.value;
 
-        return (
-          <TouchableOpacity
-            key={item.value}
-            onPress={() => setDischargeStatus(item.value)}
-            style={[
-              styles.statusButton,
-              active && styles.statusButtonActive,
-            ]}
-            disabled={submittingAction}
-          >
-            <Text
-              style={[
-                styles.statusText,
-                active && styles.statusTextActive,
-              ]}
-            >
-              {item.label}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
-    </View>
-  </View>
-) : null}
+                  return (
+                    <TouchableOpacity
+                      key={item.value}
+                      onPress={() => setDischargeStatus(item.value)}
+                      style={[
+                        styles.statusButton,
+                        active && styles.statusButtonActive,
+                      ]}
+                      disabled={submittingAction}
+                    >
+                      <Text
+                        style={[
+                          styles.statusItemText,
+                          active && styles.statusItemTextActive,
+                        ]}
+                      >
+                        {item.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          ) : null}
+
+          {pendingAction.status === "waiting_dispensary" ? (
+            <View style={styles.prescriptionSection}>
+              <Text style={styles.sectionTitle}>Prescription</Text>
+
+              <Text style={styles.infoText}>
+                Add medicines prescribed to the patient before sending to
+                dispensary.
+              </Text>
+
+              {prescriptions.map((row, index) => (
+                <View key={row.id} style={styles.prescriptionRow}>
+                  <View style={styles.prescriptionHeader}>
+                    <Text style={styles.prescriptionIndex}>
+                      Medicine #{index + 1}
+                    </Text>
+
+                    {prescriptions.length > 1 ? (
+                      <TouchableOpacity
+                        style={styles.removeButton}
+                        onPress={() => removePrescription(index)}
+                        disabled={submittingAction}
+                      >
+                        <Text style={styles.removeText}>Remove</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+
+                  <Text style={styles.label}>Drug Name *</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={row.drugName}
+                    onChangeText={(value) =>
+                      updatePrescription(index, "drugName", value)
+                    }
+                    placeholder="e.g. Amoxicillin"
+                    editable={!submittingAction}
+                  />
+
+                  <View style={styles.row}>
+                    <View style={styles.halfField}>
+                      <Text style={styles.label}>Strength</Text>
+                      <TextInput
+                        style={styles.input}
+                        value={row.strength}
+                        onChangeText={(value) =>
+                          updatePrescription(index, "strength", value)
+                        }
+                        placeholder="e.g. 500mg"
+                        editable={!submittingAction}
+                      />
+                    </View>
+
+                    <View style={styles.halfField}>
+                      <Text style={styles.label}>Quantity *</Text>
+                      <TextInput
+                        style={styles.input}
+                        value={row.quantity}
+                        onChangeText={(value) =>
+                          updatePrescription(index, "quantity", value)
+                        }
+                        keyboardType="numeric"
+                        placeholder="e.g. 10"
+                        editable={!submittingAction}
+                      />
+                    </View>
+                  </View>
+
+                  <View style={styles.row}>
+                    <View style={styles.halfField}>
+                      <Text style={styles.label}>Dosage</Text>
+                      <TextInput
+                        style={styles.input}
+                        value={row.dosage}
+                        onChangeText={(value) =>
+                          updatePrescription(index, "dosage", value)
+                        }
+                        placeholder="e.g. 1 capsule"
+                        editable={!submittingAction}
+                      />
+                    </View>
+
+                    <View style={styles.halfField}>
+                      <Text style={styles.label}>Frequency</Text>
+                      <TextInput
+                        style={styles.input}
+                        value={row.frequency}
+                        onChangeText={(value) =>
+                          updatePrescription(index, "frequency", value)
+                        }
+                        placeholder="e.g. Twice daily"
+                        editable={!submittingAction}
+                      />
+                    </View>
+                  </View>
+
+                  <Text style={styles.label}>Duration</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={row.duration}
+                    onChangeText={(value) =>
+                      updatePrescription(index, "duration", value)
+                    }
+                    placeholder="e.g. 5 days"
+                    editable={!submittingAction}
+                  />
+
+                  <Text style={styles.label}>Instructions</Text>
+                  <TextInput
+                    style={[styles.input, styles.multilineInput]}
+                    value={row.instructions}
+                    onChangeText={(value) =>
+                      updatePrescription(index, "instructions", value)
+                    }
+                    placeholder="e.g. Take after food"
+                    multiline
+                    editable={!submittingAction}
+                  />
+                </View>
+              ))}
+
+              <TouchableOpacity
+                style={styles.addButton}
+                onPress={addPrescription}
+                disabled={submittingAction}
+              >
+                <Text style={styles.addButtonText}>
+                  + Add Another Medicine
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
 
           <Text style={styles.sectionTitle}>Vitals (optional)</Text>
 
@@ -907,7 +1162,7 @@ if (pendingAction.status === "completed") {
               Age: {patient.age ?? "—"}
             </Text>
 
-                        <Text style={styles.detail}>
+            <Text style={styles.detail}>
               Address: {patient.address || "—"}
             </Text>
 
@@ -915,9 +1170,16 @@ if (pendingAction.status === "completed") {
               Tribe: {patient.tribe || "—"}
             </Text>
 
-            <Text style={[styles.detail, { color: "#b91c1c", fontWeight: "bold" }]}>
-              🚨 Next of Kin: {patient.nextOfKinName || "—"} ({patient.nextOfKinPhone || "No phone"})
+            <Text
+              style={[
+                styles.detail,
+                { color: "#b91c1c", fontWeight: "bold" },
+              ]}
+            >
+              🚨 Next of Kin: {patient.nextOfKinName || "—"} (
+              {patient.nextOfKinPhone || "No phone"})
             </Text>
+
             <View style={styles.divider} />
 
             <Text style={styles.detail}>
@@ -930,7 +1192,7 @@ if (pendingAction.status === "completed") {
                 { backgroundColor: getStatusColor(visit.status) },
               ]}
             >
-              <Text style={styles.statusText}>
+              <Text style={styles.visitStatusText}>
                 {humanize(visit.status)}
               </Text>
             </View>
@@ -983,6 +1245,56 @@ if (pendingAction.status === "completed") {
               </>
             ) : null}
 
+            {visit.prescriptions && visit.prescriptions.length > 0 ? (
+              <>
+                <View style={styles.divider} />
+
+                <Text style={styles.sectionLabel}>
+                  Existing Prescriptions
+                </Text>
+
+                {visit.prescriptions.map((rx, index) => (
+                  <View
+                    key={`${rx.drugName}-${index}`}
+                    style={styles.prescriptionPreview}
+                  >
+                    <Text style={styles.prescriptionPreviewName}>
+                      {rx.drugName || "Unknown medicine"}
+                      {rx.strength ? ` ${rx.strength}` : ""}
+                    </Text>
+
+                    <Text style={styles.detail}>
+                      Quantity: {rx.quantity ?? "—"}
+                    </Text>
+
+                    {rx.dosage ? (
+                      <Text style={styles.detail}>
+                        Dosage: {rx.dosage}
+                      </Text>
+                    ) : null}
+
+                    {rx.frequency ? (
+                      <Text style={styles.detail}>
+                        Frequency: {rx.frequency}
+                      </Text>
+                    ) : null}
+
+                    {rx.duration ? (
+                      <Text style={styles.detail}>
+                        Duration: {rx.duration}
+                      </Text>
+                    ) : null}
+
+                    {rx.instructions ? (
+                      <Text style={styles.note}>
+                        {rx.instructions}
+                      </Text>
+                    ) : null}
+                  </View>
+                ))}
+              </>
+            ) : null}
+
             <View style={styles.divider} />
 
             <Text style={styles.actionTitle}>
@@ -1005,10 +1317,15 @@ if (pendingAction.status === "completed") {
                     onPress={() => requestAction(visit, actionStatus)}
                     style={[
                       styles.actionButton,
-                      {
-                        backgroundColor:
-                          getActionButtonColor(actionStatus),
-                      },
+                      actionStatus === "cancelled" && styles.dangerButton,
+                      actionStatus === "no_show" && styles.dangerButton,
+                      actionStatus === "completed" && styles.successButton,
+                      actionStatus === "waiting_dispensary" &&
+                        styles.dispensaryButton,
+                      actionStatus === "waiting_billing" &&
+                        styles.billingButton,
+                      actionStatus === "waiting_lab" &&
+                        styles.labButton,
                       submittingAction && styles.disabledButton,
                     ]}
                   >
@@ -1102,10 +1419,28 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
+  summarySection: {
+    backgroundColor: "#f9fafb",
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    marginBottom: 12,
+  },
+
+  prescriptionSection: {
+    backgroundColor: "#f0fdf4",
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#bbf7d0",
+    marginBottom: 12,
+  },
+
   sectionTitle: {
     fontSize: 16,
     fontWeight: "bold",
-    marginTop: 8,
+    marginTop: 0,
     marginBottom: 8,
   },
 
@@ -1114,6 +1449,12 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 6,
     color: "#111827",
+  },
+
+  infoText: {
+    fontSize: 13,
+    color: "#6b7280",
+    marginBottom: 12,
   },
 
   label: {
@@ -1143,8 +1484,82 @@ const styles = StyleSheet.create({
   },
 
   multilineInput: {
-    minHeight: 100,
+    minHeight: 90,
     textAlignVertical: "top",
+  },
+
+  prescriptionRow: {
+    backgroundColor: "#ffffff",
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#bbf7d0",
+    marginBottom: 12,
+  },
+
+  prescriptionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+
+  prescriptionIndex: {
+    fontSize: 15,
+    fontWeight: "bold",
+    color: "#111827",
+  },
+
+  removeButton: {
+    backgroundColor: "#fee2e2",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+
+  removeText: {
+    color: "#b91c1c",
+    fontWeight: "600",
+  },
+
+  addButton: {
+    backgroundColor: "#16a34a",
+    padding: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    marginBottom: 12,
+  },
+
+  addButtonText: {
+    color: "#ffffff",
+    fontWeight: "bold",
+  },
+
+  statusRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 12,
+  },
+
+  statusButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: "#e5e7eb",
+  },
+
+  statusButtonActive: {
+    backgroundColor: "#2563eb",
+  },
+
+  statusItemText: {
+    color: "#111827",
+    fontWeight: "600",
+  },
+
+  statusItemTextActive: {
+    color: "#ffffff",
   },
 
   primaryButton: {
@@ -1214,7 +1629,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
 
-  statusText: {
+  visitStatusText: {
     color: "#ffffff",
     fontWeight: "bold",
     fontSize: 13,
@@ -1225,6 +1640,22 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#6b7280",
     fontStyle: "italic",
+  },
+
+  prescriptionPreview: {
+    backgroundColor: "#f9fafb",
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    marginBottom: 10,
+  },
+
+  prescriptionPreviewName: {
+    fontSize: 15,
+    fontWeight: "bold",
+    color: "#111827",
+    marginBottom: 4,
   },
 
   actionTitle: {
@@ -1240,54 +1671,39 @@ const styles = StyleSheet.create({
   },
 
   actionButton: {
+    backgroundColor: "#2563eb",
     padding: 12,
     borderRadius: 10,
     alignItems: "center",
     marginBottom: 8,
   },
 
+  labButton: {
+    backgroundColor: "#0891b2",
+  },
+
+  billingButton: {
+    backgroundColor: "#ca8a04",
+  },
+
+  dispensaryButton: {
+    backgroundColor: "#16a34a",
+  },
+
+  successButton: {
+    backgroundColor: "#15803d",
+  },
+
+  dangerButton: {
+    backgroundColor: "#dc2626",
+  },
+
   disabledButton: {
     opacity: 0.6,
   },
 
-actionButtonText: {
-  color: "#ffffff",
-  fontWeight: "bold",
-},
-
-summarySection: {
-  backgroundColor: "#f9fafb",
-  padding: 12,
-  borderRadius: 10,
-  borderWidth: 1,
-  borderColor: "#e5e7eb",
-  marginBottom: 12,
-},
-
-statusRow: {
-  flexDirection: "row",
-  flexWrap: "wrap",
-  gap: 8,
-  marginBottom: 12,
-},
-
-statusButton: {
-  paddingHorizontal: 12,
-  paddingVertical: 8,
-  borderRadius: 999,
-  backgroundColor: "#e5e7eb",
-},
-
-statusButtonActive: {
-  backgroundColor: "#2563eb",
-},
-
-statusText: {
-  color: "#111827",
-  fontWeight: "600",
-},
-
-statusTextActive: {
-  color: "#ffffff",
-},
+  actionButtonText: {
+    color: "#ffffff",
+    fontWeight: "bold",
+  },
 });
