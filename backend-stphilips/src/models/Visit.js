@@ -6,6 +6,8 @@ const VISIT_STATUSES = [
   "registered",
   "waiting_consultation",
   "in_consultation",
+  "waiting_procedure",
+  "procedure_in_progress",
   "waiting_lab",
   "lab_in_progress",
   "waiting_interpretation",
@@ -19,6 +21,7 @@ const VISIT_STATUSES = [
 const DEPARTMENTS = [
   "reception",
   "consultation",
+  "procedures",
   "laboratory",
   "interpretation",
   "billing",
@@ -83,6 +86,49 @@ const labResultSchema = new Schema(
     },
 
     enteredBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+    },
+  },
+  {
+    _id: false,
+  }
+);
+
+const procedureSchema = new Schema(
+  {
+    procedureName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    treatmentGiven: {
+      type: String,
+      trim: true,
+    },
+
+    emergency: {
+      type: Boolean,
+      default: false,
+    },
+
+    notes: {
+      type: String,
+      trim: true,
+    },
+
+    outcome: {
+      type: String,
+      trim: true,
+    },
+
+    performedAt: {
+      type: Date,
+      default: Date.now,
+    },
+
+    performedBy: {
       type: Schema.Types.ObjectId,
       ref: "User",
     },
@@ -266,6 +312,11 @@ const visitSchema = new Schema(
 
     labResults: {
       type: [labResultSchema],
+      default: [],
+    },
+
+    procedures: {
+      type: [procedureSchema],
       default: [],
     },
 

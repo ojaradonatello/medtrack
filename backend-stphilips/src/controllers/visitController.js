@@ -5,6 +5,8 @@ const VISIT_STATUSES = [
   "registered",
   "waiting_consultation",
   "in_consultation",
+  "waiting_procedure",
+  "procedure_in_progress",
   "waiting_lab",
   "lab_in_progress",
   "waiting_interpretation",
@@ -18,6 +20,7 @@ const VISIT_STATUSES = [
 const DEPARTMENTS = [
   "reception",
   "consultation",
+  "procedures",
   "laboratory",
   "interpretation",
   "billing",
@@ -51,11 +54,26 @@ const ALLOWED_MOVES = {
   waiting_consultation: [
     "in_consultation",
     "waiting_lab",
+    "waiting_procedure",
     "cancelled",
     "no_show",
   ],
 
   in_consultation: [
+    "waiting_lab",
+    "waiting_billing",
+    "waiting_dispensary",
+    "waiting_procedure",
+    "completed",
+    "cancelled",
+  ],
+
+  waiting_procedure: [
+    "procedure_in_progress",
+    "cancelled",
+  ],
+
+  procedure_in_progress: [
     "waiting_lab",
     "waiting_billing",
     "waiting_dispensary",
@@ -101,6 +119,8 @@ const STATUS_DEFAULT_DEPARTMENT = {
   registered: "reception",
   waiting_consultation: "consultation",
   in_consultation: "consultation",
+  waiting_procedure: "procedures",
+  procedure_in_progress: "procedures",
   waiting_lab: "laboratory",
   lab_in_progress: "laboratory",
   waiting_interpretation: "interpretation",
@@ -126,6 +146,8 @@ const ROLE_ALLOWED_TARGET_STATUSES = {
     "waiting_lab",
     "waiting_billing",
     "waiting_dispensary",
+    "waiting_procedure",
+    "procedure_in_progress",
     "completed",
     "cancelled",
   ],
@@ -147,6 +169,16 @@ const ROLE_ALLOWED_TARGET_STATUSES = {
     "completed",
     "cancelled",
   ],
+
+  staff: [
+    "waiting_procedure",
+    "procedure_in_progress",
+    "waiting_lab",
+    "waiting_billing",
+    "waiting_dispensary",
+    "completed",
+    "cancelled",
+  ],
 };
 
 const ROLE_ALLOWED_DEPARTMENTS = {
@@ -160,6 +192,7 @@ const ROLE_ALLOWED_DEPARTMENTS = {
 
   doctor: [
     "consultation",
+    "procedures",
     "laboratory",
     "interpretation",
     "billing",
@@ -181,6 +214,14 @@ const ROLE_ALLOWED_DEPARTMENTS = {
   ],
 
   pharmacist: [
+    "dispensary",
+    "closed",
+  ],
+
+  staff: [
+    "procedures",
+    "laboratory",
+    "billing",
     "dispensary",
     "closed",
   ],
@@ -214,6 +255,28 @@ function toNumber(value) {
   }
 
   return num;
+}
+
+function cleanText(value) {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return undefined;
+  }
+
+  if (trimmed.length > 2000) {
+    return null;
+  }
+
+  return trimmed;
 }
 
 function validateVitals(vitals) {
@@ -352,28 +415,6 @@ function validateVitals(vitals) {
   };
 }
 
-function cleanText(value, label) {
-  if (value === undefined || value === null) {
-    return undefined;
-  }
-
-  if (typeof value !== "string") {
-    return null;
-  }
-
-  const trimmed = value.trim();
-
-  if (!trimmed) {
-    return undefined;
-  }
-
-  if (trimmed.length > 2000) {
-    return null;
-  }
-
-  return trimmed;
-}
-
 function validateVisitSummary(summary) {
   if (summary === undefined || summary === null) {
     return {
@@ -391,7 +432,7 @@ function validateVisitSummary(summary) {
 
   const result = {};
 
-  const diagnosis = cleanText(summary.diagnosis, "Diagnosis");
+  const diagnosis = cleanText(summary.diagnosis);
 
   if (diagnosis === null) {
     return {
@@ -404,10 +445,7 @@ function validateVisitSummary(summary) {
     result.diagnosis = diagnosis;
   }
 
-  const treatmentGiven = cleanText(
-    summary.treatmentGiven,
-    "Treatment given"
-  );
+  const treatmentGiven = cleanText(summary.treatmentGiven);
 
   if (treatmentGiven === null) {
     return {
@@ -420,7 +458,7 @@ function validateVisitSummary(summary) {
     result.treatmentGiven = treatmentGiven;
   }
 
-  const advice = cleanText(summary.advice, "Advice");
+  const advice = cleanText(summary.advice);
 
   if (advice === null) {
     return {
@@ -433,10 +471,7 @@ function validateVisitSummary(summary) {
     result.advice = advice;
   }
 
-  const summaryNote = cleanText(
-    summary.summaryNote,
-    "Summary note"
-  );
+  const summaryNote = cleanText(summary.summaryNote);
 
   if (summaryNote === null) {
     return {
@@ -744,6 +779,127 @@ function validatePrescriptions(items) {
   };
 }
 
+function validateProcedures(items) {
+  if (items === undefined || items === null) {
+    return {
+      error: null,
+      data: null,
+    };
+  }
+
+  if (!Array.isArray(items)) {
+    return {
+      error: "procedures must be an array",
+      data: null,
+    };
+  }
+
+  if (items.length > 50) {
+    return {
+      error: "Too many procedures. Maximum is 50.",
+      data: null,
+    };
+  }
+
+  const cleaned = [];
+
+  for (let i = 0; i < items.length; i += 1) {
+    const item = items[i];
+
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      return {
+        error: `Procedure at position ${i + 1} must be an object`,
+        data: null,
+      };
+    }
+
+    const procedureName =
+      typeof item.procedureName === "string"
+        ? item.procedureName.trim()
+        : "";
+
+    if (!procedureName) {
+      return {
+        error: `Procedure at position ${i + 1} requires procedureName`,
+        data: null,
+      };
+    }
+
+    if (procedureName.length > 300) {
+      return {
+        error: `Procedure name at position ${i + 1} is too long`,
+        data: null,
+      };
+    }
+
+    const treatmentGiven = cleanText(item.treatmentGiven);
+
+    if (treatmentGiven === null) {
+      return {
+        error: `Treatment given at position ${i + 1} must be valid text`,
+        data: null,
+      };
+    }
+
+    const notes = cleanText(item.notes);
+
+    if (notes === null) {
+      return {
+        error: `Procedure notes at position ${i + 1} must be valid text`,
+        data: null,
+      };
+    }
+
+    const outcome = cleanText(item.outcome);
+
+    if (outcome === null) {
+      return {
+        error: `Procedure outcome at position ${i + 1} must be valid text`,
+        data: null,
+      };
+    }
+
+    const emergency =
+      item.emergency === true ||
+      item.emergency === "true" ||
+      item.emergency === 1 ||
+      item.emergency === "1";
+
+    let performedAt = new Date();
+
+    if (
+      item.performedAt !== undefined &&
+      item.performedAt !== null &&
+      item.performedAt !== ""
+    ) {
+      const parsedDate = new Date(item.performedAt);
+
+      if (Number.isNaN(parsedDate.getTime())) {
+        return {
+          error: `Procedure at position ${i + 1} has an invalid performedAt date`,
+          data: null,
+        };
+      }
+
+      performedAt = parsedDate;
+    }
+
+    cleaned.push({
+      procedureName,
+      treatmentGiven: treatmentGiven || undefined,
+      emergency,
+      notes: notes || undefined,
+      outcome: outcome || undefined,
+      performedAt,
+    });
+  }
+
+  return {
+    error: null,
+    data: cleaned,
+  };
+}
+
 // ➕ Create Visit
 exports.createVisit = async (req, res) => {
   try {
@@ -775,7 +931,10 @@ exports.getVisits = async (req, res) => {
 
     const visits = await Visit.find(filter)
       .sort({ createdAt: -1 })
-      .populate("patient", "name phone gender age address tribe nextOfKinName nextOfKinPhone");
+      .populate(
+        "patient",
+        "name phone gender age address tribe nextOfKinName nextOfKinPhone"
+      );
 
     res.json(visits);
   } catch (err) {
@@ -786,8 +945,10 @@ exports.getVisits = async (req, res) => {
 // 🔍 Get Single Visit
 exports.getVisit = async (req, res) => {
   try {
-    const visit = await Visit.findById(req.params.id)
-      .populate("patient", "name phone gender age address tribe nextOfKinName nextOfKinPhone");
+    const visit = await Visit.findById(req.params.id).populate(
+      "patient",
+      "name phone gender age address tribe nextOfKinName nextOfKinPhone"
+    );
 
     if (!visit) {
       return res.status(404).json({ error: "Visit not found" });
@@ -799,7 +960,6 @@ exports.getVisit = async (req, res) => {
   }
 };
 
-// ➡️ Move Visit to another stage/department and optionally update vitals
 // ➡️ Move Visit to another stage/department and optionally update vitals
 exports.moveVisit = async (req, res) => {
   try {
@@ -819,6 +979,7 @@ exports.moveVisit = async (req, res) => {
       visitSummary,
       labResults,
       prescriptions,
+      procedures,
     } = req.body;
 
     const vitalsCheck = validateVitals(vitals);
@@ -861,6 +1022,16 @@ exports.moveVisit = async (req, res) => {
 
     const prescriptionData = prescriptionCheck.data;
 
+    const procedureCheck = validateProcedures(procedures);
+
+    if (procedureCheck.error) {
+      return res.status(400).json({
+        error: procedureCheck.error,
+      });
+    }
+
+    const procedureData = procedureCheck.data;
+
     if (
       prescriptions !== undefined &&
       prescriptions !== null &&
@@ -879,11 +1050,12 @@ exports.moveVisit = async (req, res) => {
       !summaryData &&
       labData === null &&
       prescriptionData === null &&
+      procedureData === null &&
       notes === undefined
     ) {
       return res.status(400).json({
         error:
-          "Provide status, currentDepartment, vitals, notes, visitSummary, labResults, or prescriptions to update visit",
+          "Provide status, currentDepartment, vitals, notes, visitSummary, labResults, prescriptions, or procedures to update visit",
       });
     }
 
@@ -1034,17 +1206,24 @@ exports.moveVisit = async (req, res) => {
       }));
     }
 
+    if (procedureData !== null) {
+      visit.procedures = procedureData.map((item) => ({
+        ...item,
+        performedBy: req.user?.id || req.user?._id,
+        performedAt: item.performedAt || new Date(),
+      }));
+    }
+
     if (visit.status === "completed") {
       visit.completedAt = new Date();
     }
 
     await visit.save();
 
-    const updatedVisit = await Visit.findById(visit._id)
-      .populate(
-        "patient",
-        "name phone gender age address tribe nextOfKinName nextOfKinPhone"
-      );
+    const updatedVisit = await Visit.findById(visit._id).populate(
+      "patient",
+      "name phone gender age address tribe nextOfKinName nextOfKinPhone"
+    );
 
     try {
       const action =
@@ -1084,6 +1263,10 @@ exports.moveVisit = async (req, res) => {
         descriptionParts.push("prescriptions updated");
       }
 
+      if (procedureData !== null) {
+        descriptionParts.push("procedures updated");
+      }
+
       await ActivityLog.create({
         actor: req.user?.id || req.user?._id,
         actorRole: role,
@@ -1106,6 +1289,7 @@ exports.moveVisit = async (req, res) => {
           summaryUpdated: !!summaryData,
           labResultsUpdated: labData !== null,
           prescriptionUpdated: prescriptionData !== null,
+          procedureUpdated: procedureData !== null,
         },
       });
     } catch (logErr) {

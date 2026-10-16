@@ -68,13 +68,18 @@ const MENU_SECTIONS: MenuSection[] = [
     ],
   },
 
-        {
+            {
     title: "Clinical Workflow",
     items: [
       {
         label: "Consultation",
         route: "/consultation",
         icon: "👨‍⚕️",
+      },
+      {
+        label: "Procedure Room",
+        route: "/procedure",
+        icon: "🩹",
       },
       {
         label: "Laboratory",
@@ -576,6 +581,14 @@ export default function Layout() {
                 }}
               />
 
+               <Drawer.Screen
+               name="procedure"
+               options={{
+               title: "Procedure Room",
+               }}
+             />
+
+
               <Drawer.Screen
                 name="laboratory"
                 options={{
@@ -583,6 +596,7 @@ export default function Layout() {
                 }}
               />
 
+             
              <Drawer.Screen
               name="interpretation"
                 options={{

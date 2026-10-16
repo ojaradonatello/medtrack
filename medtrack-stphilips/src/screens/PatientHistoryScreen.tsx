@@ -347,6 +347,56 @@ export default function PatientHistoryScreen() {
               </>
             ) : null}
 
+
+                    {visit.procedures && visit.procedures.length > 0 ? (
+              <>
+                <View style={styles.divider} />
+
+                <Text style={styles.sectionLabel}>
+                  Procedures / Treatments
+                </Text>
+
+                {visit.procedures.map(
+                  (proc: any, procIndex: number) => (
+                    <View
+                      key={`${proc.procedureName || "proc"}-${procIndex}`}
+                      style={styles.resultPreview}
+                    >
+                      <Text style={styles.resultPreviewName}>
+                        {proc.procedureName || "Unknown procedure"}
+                      </Text>
+
+                      {proc.treatmentGiven ? (
+                        <Text style={styles.resultPreviewValue}>
+                          Treatment: {proc.treatmentGiven}
+                        </Text>
+                      ) : null}
+
+                      <Text style={styles.detail}>
+                        Emergency: {proc.emergency ? "Yes" : "No"}
+                      </Text>
+
+                      {proc.outcome ? (
+                        <Text style={styles.detail}>
+                          Outcome: {proc.outcome}
+                        </Text>
+                      ) : null}
+
+                      {proc.notes ? (
+                        <Text style={styles.note}>{proc.notes}</Text>
+                      ) : null}
+
+                      {proc.performedAt ? (
+                        <Text style={styles.detail}>
+                          Recorded: {formatDate(proc.performedAt)}
+                        </Text>
+                      ) : null}
+                    </View>
+                  )
+                )}
+              </>
+            ) : null}
+
             {visit.labResults && visit.labResults.length > 0 ? (
               <>
                 <View style={styles.divider} />

@@ -28,6 +28,7 @@ const MOVE_ROLES = [
   "lab",
   "billing",
   "pharmacist",
+  "staff",
 ];
 
 router.use(authenticate);

@@ -97,6 +97,7 @@ const MOVES_BY_STATUS: Record<string, string[]> = {
   waiting_consultation: [
     "in_consultation",
     "waiting_lab",
+    "waiting_procedure",
     "cancelled",
     "no_show",
   ],
@@ -105,6 +106,7 @@ const MOVES_BY_STATUS: Record<string, string[]> = {
     "waiting_lab",
     "waiting_billing",
     "waiting_dispensary",
+    "waiting_procedure",
     "completed",
     "cancelled",
   ],
@@ -115,6 +117,7 @@ const ACTION_LABELS: Record<string, string> = {
   waiting_lab: "Send to Laboratory",
   waiting_billing: "Send to Billing",
   waiting_dispensary: "Send to Dispensary",
+  waiting_procedure: "Send to Procedure Room",
   completed: "Complete Visit",
   cancelled: "Cancel Visit",
   no_show: "Mark No Show",
@@ -123,6 +126,8 @@ const ACTION_LABELS: Record<string, string> = {
 const ACTION_NOTES: Record<string, string> = {
   in_consultation: "Doctor started consultation",
   waiting_lab: "Doctor sent patient to laboratory",
+    waiting_procedure:
+    "Doctor sent patient to procedure/treatment room",
   waiting_billing: "Doctor sent patient to billing",
   waiting_dispensary:
     "Doctor prescribed medication and sent to dispensary",
@@ -1326,6 +1331,8 @@ export default function ConsultationScreen() {
                         styles.billingButton,
                       actionStatus === "waiting_lab" &&
                         styles.labButton,
+                        actionStatus === "waiting_procedure" &&
+                        styles.procedureButton,
                       submittingAction && styles.disabledButton,
                     ]}
                   >
@@ -1681,6 +1688,9 @@ const styles = StyleSheet.create({
   labButton: {
     backgroundColor: "#0891b2",
   },
+  procedureButton: {
+  backgroundColor: "#7c3aed",
+},
 
   billingButton: {
     backgroundColor: "#ca8a04",
