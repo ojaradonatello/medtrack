@@ -922,7 +922,21 @@ export default function DispenseScreen() {
                 Available stock: {getStock(selectedMatchedDrug._id)}
               </Text>
             ) : null}
+               
 
+                           <TouchableOpacity
+              style={styles.printButton}
+              onPress={() =>
+                router.push(
+                  `/medical-form?id=${encodeURIComponent(selectedVisit._id)}`
+                )
+              }
+              disabled={saving}
+            >
+              <Text style={styles.printButtonText}>
+                🖨️ Print Medical Form
+              </Text>
+            </TouchableOpacity>
             <TouchableOpacity
               style={[
                 styles.primaryButton,
@@ -1264,5 +1278,19 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#111827",
     marginBottom: 4,
+  },
+
+    printButton: {
+    backgroundColor: "#7c3aed",
+    padding: 14,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 10,
+    marginBottom: 10,
+  },
+
+  printButtonText: {
+    color: "#ffffff",
+    fontWeight: "bold",
   },
 });

@@ -312,6 +312,20 @@ export default function PatientHistoryScreen() {
             <Text style={styles.detail}>
               Last updated: {formatDate(visit.updatedAt)}
             </Text>
+                           {visit._id ? (
+              <TouchableOpacity
+                style={styles.printButton}
+                onPress={() =>
+                  router.push(
+                    `/medical-form?id=${encodeURIComponent(visit._id)}`
+                  )
+                }
+              >
+                <Text style={styles.printButtonText}>
+                  🖨️ Print Medical Form
+                </Text>
+              </TouchableOpacity>
+            ) : null}
 
             {visit.vitals && Object.keys(visit.vitals).length > 0 ? (
               <>
@@ -776,5 +790,19 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontWeight: "bold",
     fontSize: 12,
+  },
+
+    printButton: {
+    backgroundColor: "#7c3aed",
+    padding: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 8,
+    marginBottom: 8,
+  },
+
+  printButtonText: {
+    color: "#ffffff",
+    fontWeight: "bold",
   },
 });
