@@ -18,7 +18,7 @@ export const ROUTE_ROLES: Record<string, AppRole[]> = {
 
   "/patient-history": ["admin", "reception", "doctor"],
 
-  "/edit-patient": ["admin", "reception", "doctor"],
+  "/edit-patient": [ "admin", "reception","doctor", "lab", "pharmacist",],
 
   "/queue": ["admin", "reception"],
   

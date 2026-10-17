@@ -25,7 +25,10 @@ import {
 } from "../components/StateView";
 
 function showMessage(title: string, message: string) {
-  if (Platform.OS === "web" && typeof (globalThis as any).alert === "function") {
+  if (
+    Platform.OS === "web" &&
+    typeof (globalThis as any).alert === "function"
+  ) {
     (globalThis as any).alert(`${title}: ${message}`);
   } else {
     Alert.alert(title, message);
@@ -51,7 +54,13 @@ export default function EditPatientScreen() {
   const [nextOfKinName, setNextOfKinName] = useState("");
   const [nextOfKinPhone, setNextOfKinPhone] = useState("");
 
-  const canEdit = user?.role === "admin" || user?.role === "reception" || user?.role === "doctor";
+  // Updated to include lab and pharmacist
+  const canEdit =
+    user?.role === "admin" ||
+    user?.role === "reception" ||
+    user?.role === "doctor" ||
+    user?.role === "lab" ||
+    user?.role === "pharmacist";
 
   useEffect(() => {
     const loadPatient = async () => {
@@ -77,8 +86,9 @@ export default function EditPatientScreen() {
         setNextOfKinPhone(p.nextOfKinPhone || "");
       } catch (err: any) {
         const status = err?.response?.status;
-        const msg = err?.response?.data?.error || err?.message || "Failed to load patient";
-        
+        const msg =
+          err?.response?.data?.error || err?.message || "Failed to load patient";
+
         if (status === 401) {
           await logout();
           router.replace("/");
@@ -142,11 +152,11 @@ export default function EditPatientScreen() {
 
       setSuccess("Patient updated successfully.");
       showMessage("Success", "Patient updated successfully.");
-      
     } catch (err: any) {
       const status = err?.response?.status;
-      const msg = err?.response?.data?.error || err?.message || "Failed to update patient";
-      
+      const msg =
+        err?.response?.data?.error || err?.message || "Failed to update patient";
+
       if (status === 401) {
         await logout();
         router.replace("/");
@@ -157,7 +167,7 @@ export default function EditPatientScreen() {
         showMessage("Error", "A patient with this phone number already exists.");
         return;
       }
-      
+
       setError(msg);
       showMessage("Error", msg);
     } finally {
@@ -170,7 +180,12 @@ export default function EditPatientScreen() {
   }
 
   if (!canEdit) {
-    return <ErrorState message="You do not have permission to edit patients." onRetry={() => router.back()} />;
+    return (
+      <ErrorState
+        message="You do not have permission to edit patients."
+        onRetry={() => router.back()}
+      />
+    );
   }
 
   if (error && !name) {
@@ -178,23 +193,47 @@ export default function EditPatientScreen() {
   }
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
       <ScrollView style={styles.screen}>
         <Text style={styles.title}>✏️ Edit Patient</Text>
-        <Text style={styles.subtitle}>Update patient demographics and emergency contact information.</Text>
+        <Text style={styles.subtitle}>
+          Update patient demographics and emergency contact information.
+        </Text>
 
         <ErrorBanner message={error} />
         <SuccessBanner message={success} />
 
         <View style={styles.card}>
           <Text style={styles.label}>Full Name *</Text>
-          <TextInput style={styles.input} value={name} onChangeText={setName} autoCapitalize="words" editable={!saving} />
+          <TextInput
+            style={styles.input}
+            value={name}
+            onChangeText={setName}
+            autoCapitalize="words"
+            editable={!saving}
+          />
 
           <Text style={styles.label}>Phone Number *</Text>
-          <TextInput style={styles.input} value={phone} onChangeText={setPhone} keyboardType="phone-pad" autoCapitalize="none" editable={!saving} />
+          <TextInput
+            style={styles.input}
+            value={phone}
+            onChangeText={setPhone}
+            keyboardType="phone-pad"
+            autoCapitalize="none"
+            editable={!saving}
+          />
 
           <Text style={styles.label}>Age</Text>
-          <TextInput style={styles.input} value={age} onChangeText={setAge} keyboardType="numeric" editable={!saving} />
+          <TextInput
+            style={styles.input}
+            value={age}
+            onChangeText={setAge}
+            keyboardType="numeric"
+            editable={!saving}
+          />
 
           <Text style={styles.label}>Gender *</Text>
           <View style={styles.genderRow}>
@@ -202,10 +241,18 @@ export default function EditPatientScreen() {
               <TouchableOpacity
                 key={g}
                 onPress={() => setGender(g)}
-                style={[styles.genderButton, gender === g && styles.genderButtonSelected]}
+                style={[
+                  styles.genderButton,
+                  gender === g && styles.genderButtonSelected,
+                ]}
                 disabled={saving}
               >
-                <Text style={[styles.genderText, gender === g && styles.genderTextSelected]}>
+                <Text
+                  style={[
+                    styles.genderText,
+                    gender === g && styles.genderTextSelected,
+                  ]}
+                >
                   {g}
                 </Text>
               </TouchableOpacity>
@@ -213,16 +260,41 @@ export default function EditPatientScreen() {
           </View>
 
           <Text style={styles.label}>Address</Text>
-          <TextInput style={[styles.input, styles.multiline]} value={address} onChangeText={setAddress} multiline editable={!saving} />
+          <TextInput
+            style={[styles.input, styles.multiline]}
+            value={address}
+            onChangeText={setAddress}
+            multiline
+            editable={!saving}
+          />
 
           <Text style={styles.label}>Tribe</Text>
-          <TextInput style={styles.input} value={tribe} onChangeText={setTribe} autoCapitalize="words" editable={!saving} />
+          <TextInput
+            style={styles.input}
+            value={tribe}
+            onChangeText={setTribe}
+            autoCapitalize="words"
+            editable={!saving}
+          />
 
           <Text style={styles.label}>Next of Kin Name</Text>
-          <TextInput style={styles.input} value={nextOfKinName} onChangeText={setNextOfKinName} autoCapitalize="words" editable={!saving} />
+          <TextInput
+            style={styles.input}
+            value={nextOfKinName}
+            onChangeText={setNextOfKinName}
+            autoCapitalize="words"
+            editable={!saving}
+          />
 
           <Text style={styles.label}>Next of Kin Phone</Text>
-          <TextInput style={styles.input} value={nextOfKinPhone} onChangeText={setNextOfKinPhone} keyboardType="phone-pad" autoCapitalize="none" editable={!saving} />
+          <TextInput
+            style={styles.input}
+            value={nextOfKinPhone}
+            onChangeText={setNextOfKinPhone}
+            keyboardType="phone-pad"
+            autoCapitalize="none"
+            editable={!saving}
+          />
 
           <TouchableOpacity
             style={[styles.primaryButton, saving && styles.disabledButton]}
@@ -253,18 +325,50 @@ const styles = StyleSheet.create({
   screen: { flex: 1, padding: 20, backgroundColor: "#f9fafb" },
   title: { fontSize: 24, fontWeight: "bold", marginBottom: 8 },
   subtitle: { fontSize: 14, color: "#6b7280", marginBottom: 16 },
-  card: { backgroundColor: "#fff", padding: 16, borderRadius: 12, borderWidth: 1, borderColor: "#e5e7eb" },
+  card: {
+    backgroundColor: "#fff",
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+  },
   label: { fontSize: 14, fontWeight: "600", marginBottom: 6, color: "#111827" },
-  input: { borderWidth: 1, borderColor: "#d1d5db", backgroundColor: "#fff", padding: 12, borderRadius: 10, marginBottom: 12, fontSize: 15 },
+  input: {
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    backgroundColor: "#fff",
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 12,
+    fontSize: 15,
+  },
   multiline: { minHeight: 80, textAlignVertical: "top" },
   genderRow: { flexDirection: "row", gap: 10, marginBottom: 12 },
-  genderButton: { flex: 1, padding: 12, borderRadius: 10, backgroundColor: "#e5e7eb", alignItems: "center" },
+  genderButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: "#e5e7eb",
+    alignItems: "center",
+  },
   genderButtonSelected: { backgroundColor: "#2563eb" },
   genderText: { color: "#111827", fontWeight: "600" },
   genderTextSelected: { color: "#fff" },
-  primaryButton: { backgroundColor: "#2563eb", padding: 15, borderRadius: 10, alignItems: "center", marginBottom: 10, marginTop: 10 },
+  primaryButton: {
+    backgroundColor: "#2563eb",
+    padding: 15,
+    borderRadius: 10,
+    alignItems: "center",
+    marginBottom: 10,
+    marginTop: 10,
+  },
   primaryButtonText: { color: "#fff", fontWeight: "bold", fontSize: 16 },
-  secondaryButton: { backgroundColor: "#e5e7eb", padding: 12, borderRadius: 10, alignItems: "center" },
+  secondaryButton: {
+    backgroundColor: "#e5e7eb",
+    padding: 12,
+    borderRadius: 10,
+    alignItems: "center",
+  },
   secondaryButtonText: { color: "#111827", fontWeight: "600" },
   disabledButton: { opacity: 0.6 },
 });

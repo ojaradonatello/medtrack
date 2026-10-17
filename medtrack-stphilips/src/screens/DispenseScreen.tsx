@@ -742,6 +742,31 @@ export default function DispenseScreen() {
 
       {selectedVisit ? (
         <>
+          {selectedVisit.patient?._id ? (
+            <TouchableOpacity
+              style={{
+                backgroundColor: "#ca8a04",
+                padding: 12,
+                borderRadius: 10,
+                alignItems: "center",
+                marginBottom: 12,
+              }}
+              onPress={() => {
+                const pid = selectedVisit.patient?._id;
+                if (pid) {
+                  router.push(
+                    `/edit-patient?id=${encodeURIComponent(pid)}`
+                  );
+                }
+              }}
+              disabled={saving}
+            >
+              <Text style={{ color: "#fff", fontWeight: "bold" }}>
+                ✏️ Edit Patient
+              </Text>
+            </TouchableOpacity>
+          ) : null}
+
           <Text style={styles.sectionTitle}>
             2. Prescribed Medicines for{" "}
             {selectedVisit.patient?.name || "Patient"}
@@ -903,7 +928,7 @@ export default function DispenseScreen() {
                 styles.primaryButton,
                 saving && styles.disabledButton,
                 (!selectedPrescription ||
-                  selectedPrescription?.dispensed ||
+                  !!selectedPrescription?.dispensed ||
                   !selectedMatchedDrug ||
                   selectedRemaining <= 0) &&
                   styles.disabledButton,
@@ -912,7 +937,7 @@ export default function DispenseScreen() {
               disabled={
                 saving ||
                 !selectedPrescription ||
-                selectedPrescription?.dispensed ||
+                !!selectedPrescription?.dispensed ||
                 !selectedMatchedDrug ||
                 selectedRemaining <= 0
               }

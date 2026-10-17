@@ -660,6 +660,31 @@ export default function InterpretationScreen() {
                 No lab results were recorded.
               </Text>
             )}
+              
+                          {patient._id ? (
+              <TouchableOpacity
+                style={{
+                  backgroundColor: "#ca8a04",
+                  padding: 12,
+                  borderRadius: 10,
+                  alignItems: "center",
+                  marginBottom: 10,
+                }}
+                onPress={() => {
+                  const pid = patient._id;
+                  if (pid) {
+                    router.push(
+                      `/edit-patient?id=${encodeURIComponent(pid)}`
+                    );
+                  }
+                }}
+                disabled={submittingAction}
+              >
+                <Text style={{ color: "#fff", fontWeight: "bold" }}>
+                  ✏️ Edit Patient
+                </Text>
+              </TouchableOpacity>
+            ) : null}
 
             <View style={styles.divider} />
 

@@ -1,6 +1,39 @@
 const Patient = require("../models/Patient");
 const Visit = require("../models/Visit");
 
+const VIEW_ROLES = [
+  "admin",
+  "reception",
+  "doctor",
+  "lab",
+  "billing",
+  "pharmacist",
+  "staff",
+];
+
+const CREATE_ROLES = [
+  "admin",
+  "reception",
+  "doctor",
+];
+
+const EDIT_ROLES = [
+  "admin",
+  "reception",
+  "doctor",
+  "lab",
+  "pharmacist",
+];
+
+const DELETE_ROLES = [
+  "admin",
+  "reception",
+];
+
+function canRole(role, allowedRoles) {
+  return !!role && Array.isArray(allowedRoles) && allowedRoles.includes(role);
+}
+
 function sendError(res, err) {
   if (err.name === "ValidationError") {
     const messages = Object.values(err.errors).map((e) => e.message);
@@ -37,6 +70,12 @@ function sendError(res, err) {
 // Create Patient
 exports.createPatient = async (req, res) => {
   try {
+    if (!canRole(req.user?.role, CREATE_ROLES)) {
+      return res.status(403).json({
+        error: "You do not have permission to create patients",
+      });
+    }
+
     const patient = await Patient.create(req.body);
     res.status(201).json(patient);
   } catch (err) {
@@ -47,6 +86,12 @@ exports.createPatient = async (req, res) => {
 // Get All Patients
 exports.getPatients = async (req, res) => {
   try {
+    if (!canRole(req.user?.role, VIEW_ROLES)) {
+      return res.status(403).json({
+        error: "You do not have permission to view patients",
+      });
+    }
+
     const patients = await Patient.find().sort({ createdAt: -1 });
     res.json(patients);
   } catch (err) {
@@ -57,6 +102,12 @@ exports.getPatients = async (req, res) => {
 // Get Single Patient
 exports.getPatient = async (req, res) => {
   try {
+    if (!canRole(req.user?.role, VIEW_ROLES)) {
+      return res.status(403).json({
+        error: "You do not have permission to view this patient",
+      });
+    }
+
     const patient = await Patient.findById(req.params.id);
 
     if (!patient) {
@@ -67,13 +118,19 @@ exports.getPatient = async (req, res) => {
 
     res.json(patient);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    sendError(res, err);
   }
 };
 
 // Get All Visits For One Patient
 exports.getPatientVisits = async (req, res) => {
   try {
+    if (!canRole(req.user?.role, VIEW_ROLES)) {
+      return res.status(403).json({
+        error: "You do not have permission to view patient history",
+      });
+    }
+
     const patient = await Patient.findById(req.params.id);
 
     if (!patient) {
@@ -84,7 +141,10 @@ exports.getPatientVisits = async (req, res) => {
 
     const visits = await Visit.find({ patient: patient._id })
       .sort({ createdAt: -1 })
-      .populate("patient", "name phone gender age address tribe nextOfKinName nextOfKinPhone");
+      .populate(
+        "patient",
+        "name phone gender age address tribe nextOfKinName nextOfKinPhone"
+      );
 
     res.json({
       patient,
@@ -99,6 +159,12 @@ exports.getPatientVisits = async (req, res) => {
 // Search Patients by name or phone and include active visit status
 exports.searchPatients = async (req, res) => {
   try {
+    if (!canRole(req.user?.role, VIEW_ROLES)) {
+      return res.status(403).json({
+        error: "You do not have permission to search patients",
+      });
+    }
+
     const { name } = req.query;
 
     if (!name) {
@@ -123,6 +189,8 @@ exports.searchPatients = async (req, res) => {
       "registered",
       "waiting_consultation",
       "in_consultation",
+      "waiting_procedure",
+      "procedure_in_progress",
       "waiting_lab",
       "lab_in_progress",
       "waiting_interpretation",
@@ -169,9 +237,40 @@ exports.searchPatients = async (req, res) => {
 // Update Patient
 exports.updatePatient = async (req, res) => {
   try {
+    if (!canRole(req.user?.role, EDIT_ROLES)) {
+      return res.status(403).json({
+        error: "You do not have permission to edit patients",
+      });
+    }
+
+    const allowedFields = [
+      "name",
+      "phone",
+      "age",
+      "gender",
+      "address",
+      "tribe",
+      "nextOfKinName",
+      "nextOfKinPhone",
+    ];
+
+    const payload = {};
+
+    for (const field of allowedFields) {
+      if (req.body[field] !== undefined) {
+        payload[field] = req.body[field];
+      }
+    }
+
+    if (Object.keys(payload).length === 0) {
+      return res.status(400).json({
+        error: "No valid patient fields provided for update",
+      });
+    }
+
     const patient = await Patient.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      payload,
       { new: true, runValidators: true }
     );
 
@@ -190,6 +289,12 @@ exports.updatePatient = async (req, res) => {
 // Delete Patient
 exports.deletePatient = async (req, res) => {
   try {
+    if (!canRole(req.user?.role, DELETE_ROLES)) {
+      return res.status(403).json({
+        error: "You do not have permission to delete patients",
+      });
+    }
+
     const patient = await Patient.findByIdAndDelete(req.params.id);
 
     if (!patient) {

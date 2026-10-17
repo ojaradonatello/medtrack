@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+
 const authenticate = require("../middleware/authMiddleware");
 const authorize = require("../middleware/roleMiddleware");
 
@@ -13,18 +14,45 @@ const {
   deletePatient,
 } = require("../controllers/patientController");
 
-router.post("/", createPatient);
+const VIEW_ROLES = [
+  "admin",
+  "reception",
+  "doctor",
+  "lab",
+  "billing",
+  "pharmacist",
+  "staff",
+];
 
-router.get("/", getPatients);
+const EDIT_ROLES = [
+  "admin",
+  "reception",
+  "doctor",
+  "lab",
+  "pharmacist",
+];
 
-router.get("/search", searchPatients);
+const DELETE_ROLES = [
+  "admin",
+  "reception",
+];
 
-router.get("/:id/visits", getPatientVisits);
+router.use(authenticate);
 
-router.get("/:id", getPatient);
+router.post("/", authorize("admin", "reception", "doctor"), createPatient);
 
-router.put("/:id", authenticate, authorize("admin", "reception", "doctor"), updatePatient);
+router.get("/", authorize(...VIEW_ROLES), getPatients);
 
-router.delete("/:id", deletePatient);
+router.get("/search", authorize(...VIEW_ROLES), searchPatients);
+
+router.get("/:id/visits", authorize(...VIEW_ROLES), getPatientVisits);
+
+router.get("/:id", authorize(...VIEW_ROLES), getPatient);
+
+router.put("/:id", authorize(...EDIT_ROLES), updatePatient);
+
+router.patch("/:id", authorize(...EDIT_ROLES), updatePatient);
+
+router.delete("/:id", authorize(...DELETE_ROLES), deletePatient);
 
 module.exports = router;
