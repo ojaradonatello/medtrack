@@ -44,7 +44,21 @@ type LabResult = {
   status?: string;
   notes?: string;
   performedAt?: string;
-  enteredBy?: string;
+};
+
+type Prescription = {
+  drugName?: string;
+  strength?: string;
+  quantity?: number;
+  dosage?: string;
+  frequency?: string;
+  duration?: string;
+  instructions?: string;
+  prescribedAt?: string;
+  dispensed?: boolean;
+  dispensedQuantity?: number;
+  dispensedAt?: string;
+  dispensedByName?: string;
 };
 
 type Visit = {
@@ -58,6 +72,7 @@ type Visit = {
   updatedAt?: string;
   patient?: Patient;
   labResults?: LabResult[];
+  prescriptions?: Prescription[];
   vitals?: {
     bloodPressure?: {
       systolic?: number;
@@ -76,13 +91,26 @@ type PendingAction = {
   patientName: string;
 };
 
-const INTERPRETATION_STATUS = "waiting_interpretation";
+type PrescriptionInput = {
+  id: string;
+  drugName: string;
+  strength: string;
+  quantity: string;
+  dosage: string;
+  frequency: string;
+  duration: string;
+  instructions: string;
+};
 
-const ALLOWED_ACTIONS = [
-  "waiting_billing",
-  "completed",
-  "cancelled",
-];
+const INTERPRETATION_STATUSES = ["waiting_interpretation"];
+
+const MOVES_BY_STATUS: Record<string, string[]> = {
+  waiting_interpretation: [
+    "waiting_billing",
+    "completed",
+    "cancelled",
+  ],
+};
 
 const ACTION_LABELS: Record<string, string> = {
   waiting_billing: "Send to Billing",
@@ -91,10 +119,24 @@ const ACTION_LABELS: Record<string, string> = {
 };
 
 const ACTION_NOTES: Record<string, string> = {
-  waiting_billing: "Results interpreted. Sent to billing.",
-  completed: "Results interpreted. Visit completed.",
-  cancelled: "Visit cancelled during interpretation.",
+  waiting_billing:
+    "Doctor interpreted results and sent patient to billing",
+  completed: "Doctor completed visit after interpretation",
+  cancelled: "Visit cancelled during interpretation",
 };
+
+function makeEmptyPrescription(): PrescriptionInput {
+  return {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    drugName: "",
+    strength: "",
+    quantity: "",
+    dosage: "",
+    frequency: "",
+    duration: "",
+    instructions: "",
+  };
+}
 
 function humanize(value?: string) {
   if (!value) return "—";
@@ -111,12 +153,16 @@ function formatDate(value?: string) {
   }
 }
 
-function getStatusColor(status: string) {
+function getVisitStatusColor(status: string) {
   switch (status) {
     case "waiting_consultation":
       return "#2563eb";
     case "in_consultation":
       return "#7c3aed";
+    case "waiting_procedure":
+      return "#9333ea";
+    case "procedure_in_progress":
+      return "#6d28d9";
     case "waiting_lab":
       return "#0891b2";
     case "lab_in_progress":
@@ -138,10 +184,10 @@ function getStatusColor(status: string) {
   }
 }
 
-function getResultColor(status?: string) {
+function getLabStatusColor(status?: string) {
   switch (status) {
     case "normal":
-      return "#16a34a";
+      return "#15803d";
     case "abnormal":
       return "#b45309";
     case "critical":
@@ -164,6 +210,18 @@ function showMessage(title: string, message: string) {
   }
 }
 
+function getAllowedActions(role?: string, currentStatus?: string) {
+  if (!role || !currentStatus) return [];
+
+  const moves = MOVES_BY_STATUS[currentStatus] || [];
+
+  if (role === "admin" || role === "doctor") {
+    return moves;
+  }
+
+  return [];
+}
+
 export default function InterpretationScreen() {
   const router = useRouter();
   const { user, logout } = useContext(AuthContext);
@@ -178,6 +236,10 @@ export default function InterpretationScreen() {
   );
   const [actionNotes, setActionNotes] = useState("");
   const [submittingAction, setSubmittingAction] = useState(false);
+
+  const [prescriptions, setPrescriptions] = useState<PrescriptionInput[]>([
+    makeEmptyPrescription(),
+  ]);
 
   const canInterpret =
     user?.role === "admin" || user?.role === "doctor";
@@ -206,8 +268,8 @@ export default function InterpretationScreen() {
 
         const allVisits = Array.isArray(res.data) ? res.data : [];
 
-        const interpretationVisits = allVisits.filter(
-          (visit: Visit) => visit.status === INTERPRETATION_STATUS
+        const interpretationVisits = allVisits.filter((visit: Visit) =>
+          INTERPRETATION_STATUSES.includes(visit.status)
         );
 
         const sorted = [...interpretationVisits].sort((a, b) => {
@@ -258,6 +320,7 @@ export default function InterpretationScreen() {
   const resetAction = () => {
     setPendingAction(null);
     setActionNotes("");
+    setPrescriptions([makeEmptyPrescription()]);
   };
 
   const openAction = (visit: Visit, status: string) => {
@@ -271,6 +334,115 @@ export default function InterpretationScreen() {
     });
 
     setActionNotes(ACTION_NOTES[status] || "");
+
+    if (status === "waiting_billing" || status === "waiting_dispensary") {
+      setPrescriptions([makeEmptyPrescription()]);
+    } else {
+      setPrescriptions([]);
+    }
+  };
+
+  const addPrescription = () => {
+    setPrescriptions((prev) => [...prev, makeEmptyPrescription()]);
+  };
+
+  const removePrescription = (index: number) => {
+    setPrescriptions((prev) =>
+      prev.length > 1 ? prev.filter((_, i) => i !== index) : prev
+    );
+  };
+
+  const updatePrescription = (
+    index: number,
+    field: keyof PrescriptionInput,
+    value: string
+  ) => {
+    setPrescriptions((prev) =>
+      prev.map((row, i) =>
+        i === index
+          ? {
+              ...row,
+              [field]: value,
+            }
+          : row
+      )
+    );
+  };
+
+  const buildPrescriptionsPayload = (): {
+    error: string | null;
+    data: any[] | null | undefined;
+  } => {
+    if (!pendingAction) {
+      return { error: null, data: undefined };
+    }
+
+    if (
+      pendingAction.status !== "waiting_billing" &&
+      pendingAction.status !== "waiting_dispensary"
+    ) {
+      return { error: null, data: undefined };
+    }
+
+    const cleaned = prescriptions
+      .map((row) => ({
+        drugName: row.drugName.trim(),
+        strength: row.strength.trim(),
+        quantity: row.quantity.trim(),
+        dosage: row.dosage.trim(),
+        frequency: row.frequency.trim(),
+        duration: row.duration.trim(),
+        instructions: row.instructions.trim(),
+      }))
+      .filter(
+        (row) =>
+          row.drugName ||
+          row.quantity ||
+          row.strength ||
+          row.dosage ||
+          row.frequency ||
+          row.duration ||
+          row.instructions
+      );
+
+    if (cleaned.length === 0) {
+      return {
+        error: null,
+        data: undefined,
+      };
+    }
+
+    for (const row of cleaned) {
+      if (!row.drugName) {
+        return {
+          error: "Each prescription needs a drug name.",
+          data: null,
+        };
+      }
+
+      const quantity = Number(row.quantity);
+
+      if (!Number.isFinite(quantity) || quantity <= 0) {
+        return {
+          error:
+            "Each prescription needs a valid quantity greater than zero.",
+          data: null,
+        };
+      }
+    }
+
+    return {
+      error: null,
+      data: cleaned.map((row) => ({
+        drugName: row.drugName,
+        strength: row.strength || undefined,
+        quantity: Number(row.quantity),
+        dosage: row.dosage || undefined,
+        frequency: row.frequency || undefined,
+        duration: row.duration || undefined,
+        instructions: row.instructions || undefined,
+      })),
+    };
   };
 
   const confirmAction = async () => {
@@ -278,13 +450,27 @@ export default function InterpretationScreen() {
       return;
     }
 
-    const payload = {
+    const prescriptionResult = buildPrescriptionsPayload();
+
+    if (prescriptionResult.error) {
+      showMessage(
+        "Prescription error",
+        prescriptionResult.error
+      );
+      return;
+    }
+
+    const payload: any = {
       status: pendingAction.status,
       notes:
         actionNotes.trim() ||
         ACTION_NOTES[pendingAction.status] ||
         "Interpretation action",
     };
+
+    if (prescriptionResult.data) {
+      payload.prescriptions = prescriptionResult.data;
+    }
 
     try {
       setSubmittingAction(true);
@@ -317,65 +503,18 @@ export default function InterpretationScreen() {
     }
   };
 
-  const requestAction = (visit: Visit, status: string) => {
-    const doIt = () => openAction(visit, status);
-
-    if (Platform.OS === "web") {
-      const browserWindow = globalThis as any;
-
-      const confirmed = browserWindow.confirm
-        ? browserWindow.confirm(
-            `Are you sure you want to ${
-              ACTION_LABELS[status] || humanize(status)
-            }?`
-          )
-        : true;
-
-      if (!confirmed) {
-        return;
-      }
-
-      doIt();
-      return;
-    }
-
-    Alert.alert(
-      "Confirm Action",
-      `Are you sure you want to ${
-        ACTION_LABELS[status] || humanize(status)
-      }?`,
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-        {
-          text: "Yes",
-          onPress: doIt,
-        },
-      ]
-    );
-  };
-
-  const totalCritical = useMemo(() => {
-    let count = 0;
-
-    for (const visit of visits) {
-      for (const result of visit.labResults || []) {
-        if (result.status === "critical") {
-          count += 1;
-        }
-      }
-    }
-
-    return count;
-  }, [visits]);
+  const waitingCount = useMemo(
+    () =>
+      visits.filter((visit) => visit.status === "waiting_interpretation")
+        .length,
+    [visits]
+  );
 
   if (loading) {
     return (
       <LoadingState
         title="Loading interpretation queue..."
-        subtitle="Please wait while lab results load for interpretation."
+        subtitle="Please wait while laboratory results waiting for doctor review load."
       />
     );
   }
@@ -411,7 +550,7 @@ export default function InterpretationScreen() {
       <Text style={styles.title}>🧪 Result Interpretation</Text>
 
       <Text style={styles.subtitle}>
-        Review laboratory results, add interpretation notes, then send the
+        Review laboratory results, add prescription if needed, and send the
         patient to billing or complete the visit.
       </Text>
 
@@ -423,19 +562,12 @@ export default function InterpretationScreen() {
       <View style={styles.summaryGrid}>
         <View style={styles.summaryCard}>
           <Text style={styles.summaryLabel}>Waiting Interpretation</Text>
-          <Text style={styles.summaryValue}>{visits.length}</Text>
+          <Text style={styles.summaryValue}>{waitingCount}</Text>
         </View>
 
         <View style={styles.summaryCard}>
-          <Text style={styles.summaryLabel}>Critical Results</Text>
-          <Text
-            style={[
-              styles.summaryValue,
-              totalCritical > 0 && { color: "#b91c1c" },
-            ]}
-          >
-            {totalCritical}
-          </Text>
+          <Text style={styles.summaryLabel}>Total Queue</Text>
+          <Text style={styles.summaryValue}>{visits.length}</Text>
         </View>
       </View>
 
@@ -457,10 +589,143 @@ export default function InterpretationScreen() {
             style={[styles.input, styles.multilineInput]}
             value={actionNotes}
             onChangeText={setActionNotes}
-            placeholder="Enter interpretation, diagnosis impression, or next action"
+            placeholder="Enter interpretation, diagnosis, or next action"
             multiline
             editable={!submittingAction}
           />
+
+          {pendingAction.status === "waiting_billing" ? (
+            <View style={styles.prescriptionSection}>
+              <Text style={styles.sectionTitle}>Prescription</Text>
+
+              <Text style={styles.infoText}>
+                Add prescribed medicines if the patient needs medication.
+                This prescription will move with the patient to billing and
+                then to dispensary.
+              </Text>
+
+              {prescriptions.map((row, index) => (
+                <View key={row.id} style={styles.prescriptionRow}>
+                  <View style={styles.prescriptionHeader}>
+                    <Text style={styles.prescriptionIndex}>
+                      Medicine #{index + 1}
+                    </Text>
+
+                    {prescriptions.length > 1 ? (
+                      <TouchableOpacity
+                        style={styles.removeButton}
+                        onPress={() => removePrescription(index)}
+                        disabled={submittingAction}
+                      >
+                        <Text style={styles.removeText}>Remove</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+
+                  <Text style={styles.label}>Drug Name *</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={row.drugName}
+                    onChangeText={(value) =>
+                      updatePrescription(index, "drugName", value)
+                    }
+                    placeholder="e.g. Paracetamol"
+                    editable={!submittingAction}
+                  />
+
+                  <View style={styles.row}>
+                    <View style={styles.halfField}>
+                      <Text style={styles.label}>Strength</Text>
+                      <TextInput
+                        style={styles.input}
+                        value={row.strength}
+                        onChangeText={(value) =>
+                          updatePrescription(index, "strength", value)
+                        }
+                        placeholder="e.g. 500mg"
+                        editable={!submittingAction}
+                      />
+                    </View>
+
+                    <View style={styles.halfField}>
+                      <Text style={styles.label}>Quantity *</Text>
+                      <TextInput
+                        style={styles.input}
+                        value={row.quantity}
+                        onChangeText={(value) =>
+                          updatePrescription(index, "quantity", value)
+                        }
+                        keyboardType="numeric"
+                        placeholder="e.g. 10"
+                        editable={!submittingAction}
+                      />
+                    </View>
+                  </View>
+
+                  <View style={styles.row}>
+                    <View style={styles.halfField}>
+                      <Text style={styles.label}>Dosage</Text>
+                      <TextInput
+                        style={styles.input}
+                        value={row.dosage}
+                        onChangeText={(value) =>
+                          updatePrescription(index, "dosage", value)
+                        }
+                        placeholder="e.g. 1 tablet"
+                        editable={!submittingAction}
+                      />
+                    </View>
+
+                    <View style={styles.halfField}>
+                      <Text style={styles.label}>Frequency</Text>
+                      <TextInput
+                        style={styles.input}
+                        value={row.frequency}
+                        onChangeText={(value) =>
+                          updatePrescription(index, "frequency", value)
+                        }
+                        placeholder="e.g. Three times daily"
+                        editable={!submittingAction}
+                      />
+                    </View>
+                  </View>
+
+                  <Text style={styles.label}>Duration</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={row.duration}
+                    onChangeText={(value) =>
+                      updatePrescription(index, "duration", value)
+                    }
+                    placeholder="e.g. 3 days"
+                    editable={!submittingAction}
+                  />
+
+                  <Text style={styles.label}>Instructions</Text>
+                  <TextInput
+                    style={[styles.input, styles.multilineInput]}
+                    value={row.instructions}
+                    onChangeText={(value) =>
+                      updatePrescription(index, "instructions", value)
+                    }
+                    placeholder="e.g. Take after food"
+                    multiline
+                    editable={!submittingAction}
+                  />
+                </View>
+              ))}
+
+              <TouchableOpacity
+                style={styles.addButton}
+                onPress={addPrescription}
+                disabled={submittingAction}
+              >
+                <Text style={styles.addButtonText}>
+                  + Add Another Medicine
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
 
           <TouchableOpacity
             style={[
@@ -494,13 +759,14 @@ export default function InterpretationScreen() {
 
       {!error && visits.length === 0 ? (
         <EmptyState
-          title="No patients are waiting for result interpretation."
-          subtitle="Laboratory staff must send results here first."
+          title="No patients are currently waiting for interpretation."
+          subtitle="Laboratory staff can send results here after testing."
         />
       ) : null}
 
       {visits.map((visit) => {
         const patient = visit.patient || {};
+        const actions = getAllowedActions(user?.role, visit.status);
 
         return (
           <View key={visit._id} style={styles.card}>
@@ -547,10 +813,10 @@ export default function InterpretationScreen() {
             <View
               style={[
                 styles.statusBadge,
-                { backgroundColor: getStatusColor(visit.status) },
+                { backgroundColor: getVisitStatusColor(visit.status) },
               ]}
             >
-              <Text style={styles.visitStatusText}>
+              <Text style={styles.statusText}>
                 {humanize(visit.status)}
               </Text>
             </View>
@@ -603,87 +869,147 @@ export default function InterpretationScreen() {
               </>
             ) : null}
 
-            <View style={styles.divider} />
-
-            <Text style={styles.sectionLabel}>Laboratory Results</Text>
-
             {visit.labResults && visit.labResults.length > 0 ? (
-              visit.labResults.map((result, index) => (
-                <View
-                  key={`${result.testName || "result"}-${index}`}
-                  style={styles.resultPreview}
-                >
-                  <Text style={styles.resultPreviewName}>
-                    {result.testName || "Unknown test"}
-                  </Text>
+              <>
+                <View style={styles.divider} />
 
-                  <Text style={styles.resultPreviewValue}>
-                    Result: {result.resultValue || "—"}
-                  </Text>
+                <Text style={styles.sectionLabel}>
+                  Laboratory Results
+                </Text>
 
-                  {result.unit ? (
-                    <Text style={styles.detail}>Unit: {result.unit}</Text>
-                  ) : null}
-
-                  {result.referenceRange ? (
-                    <Text style={styles.detail}>
-                      Reference: {result.referenceRange}
-                    </Text>
-                  ) : null}
-
+                {visit.labResults.map((result, index) => (
                   <View
-                    style={[
-                      styles.resultStatusBadge,
-                      {
-                        backgroundColor: getResultColor(result.status),
-                      },
-                    ]}
+                    key={`${result.testName}-${index}`}
+                    style={styles.resultPreview}
                   >
-                    <Text style={styles.resultStatusText}>
-                      {humanize(result.status)}
+                    <Text style={styles.resultPreviewName}>
+                      {result.testName || "Unknown test"}
+                    </Text>
+
+                    <Text style={styles.resultPreviewValue}>
+                      Result: {result.resultValue || "—"}
+                    </Text>
+
+                    {result.unit ? (
+                      <Text style={styles.detail}>Unit: {result.unit}</Text>
+                    ) : null}
+
+                    {result.referenceRange ? (
+                      <Text style={styles.detail}>
+                        Reference: {result.referenceRange}
+                      </Text>
+                    ) : null}
+
+                    <View
+                      style={[
+                        styles.resultStatusPill,
+                        {
+                          backgroundColor: getLabStatusColor(
+                            result.status
+                          ),
+                        },
+                      ]}
+                    >
+                      <Text style={styles.resultStatusText}>
+                        {humanize(result.status)}
+                      </Text>
+                    </View>
+
+                    {result.notes ? (
+                      <Text style={styles.note}>{result.notes}</Text>
+                    ) : null}
+
+                    {result.performedAt ? (
+                      <Text style={styles.detail}>
+                        Recorded: {formatDate(result.performedAt)}
+                      </Text>
+                    ) : null}
+                  </View>
+                ))}
+              </>
+            ) : (
+              <>
+                <View style={styles.divider} />
+
+                <Text style={styles.sectionLabel}>
+                  Laboratory Results
+                </Text>
+
+                <Text style={styles.note}>
+                  No laboratory results were recorded for this visit.
+                </Text>
+              </>
+            )}
+
+            {visit.prescriptions && visit.prescriptions.length > 0 ? (
+              <>
+                <View style={styles.divider} />
+
+                <Text style={styles.sectionLabel}>
+                  Existing Prescriptions
+                </Text>
+
+                {visit.prescriptions.map((rx, index) => (
+                  <View
+                    key={`${rx.drugName}-${index}`}
+                    style={styles.prescriptionPreview}
+                  >
+                    <Text style={styles.prescriptionPreviewName}>
+                      {rx.drugName || "Unknown medicine"}
+                      {rx.strength ? ` ${rx.strength}` : ""}
+                    </Text>
+
+                    <Text style={styles.detail}>
+                      Quantity: {rx.quantity ?? "—"}
+                    </Text>
+
+                    {rx.dosage ? (
+                      <Text style={styles.detail}>
+                        Dosage: {rx.dosage}
+                      </Text>
+                    ) : null}
+
+                    {rx.frequency ? (
+                      <Text style={styles.detail}>
+                        Frequency: {rx.frequency}
+                      </Text>
+                    ) : null}
+
+                    {rx.duration ? (
+                      <Text style={styles.detail}>
+                        Duration: {rx.duration}
+                      </Text>
+                    ) : null}
+
+                    {rx.instructions ? (
+                      <Text style={styles.note}>
+                        {rx.instructions}
+                      </Text>
+                    ) : null}
+
+                    <Text
+                      style={[
+                        styles.detail,
+                        {
+                          color: rx.dispensed
+                            ? "#15803d"
+                            : Number(rx.dispensedQuantity || 0) > 0
+                            ? "#b45309"
+                            : "#6b7280",
+                          fontWeight: "600",
+                        },
+                      ]}
+                    >
+                      Dispensed:{" "}
+                      {rx.dispensed
+                        ? "Yes"
+                        : Number(rx.dispensedQuantity || 0) > 0
+                        ? "Partial"
+                        : "No"}
                     </Text>
                   </View>
-
-                  {result.notes ? (
-                    <Text style={styles.note}>{result.notes}</Text>
-                  ) : null}
-
-                  {result.performedAt ? (
-                    <Text style={styles.time}>
-                      Recorded: {formatDate(result.performedAt)}
-                    </Text>
-                  ) : null}
-                </View>
-              ))
-            ) : (
-              <Text style={styles.noActionText}>
-                No lab results were recorded.
-              </Text>
-            )}
-              
-                          {patient._id ? (
-              <TouchableOpacity
-                style={{
-                  backgroundColor: "#ca8a04",
-                  padding: 12,
-                  borderRadius: 10,
-                  alignItems: "center",
-                  marginBottom: 10,
-                }}
-                onPress={() => {
-                  const pid = patient._id;
-                  if (pid) {
-                    router.push(
-                      `/edit-patient?id=${encodeURIComponent(pid)}`
-                    );
-                  }
-                }}
-                disabled={submittingAction}
-              >
-                <Text style={{ color: "#fff", fontWeight: "bold" }}>
-                  ✏️ Edit Patient
-                </Text>
-              </TouchableOpacity>
+                ))}
+              </>
             ) : null}
 
             <View style={styles.divider} />
@@ -692,30 +1018,38 @@ export default function InterpretationScreen() {
               Interpretation Actions
             </Text>
 
-            {ALLOWED_ACTIONS.map((actionStatus) => {
-              const label =
-                ACTION_LABELS[actionStatus] || humanize(actionStatus);
+            {actions.length === 0 ? (
+              <Text style={styles.noActionText}>
+                No actions available for this patient.
+              </Text>
+            ) : (
+              actions.map((actionStatus) => {
+                const label =
+                  ACTION_LABELS[actionStatus] || humanize(actionStatus);
 
-              return (
-                <TouchableOpacity
-                  key={actionStatus}
-                  disabled={submittingAction}
-                  onPress={() => requestAction(visit, actionStatus)}
-                  style={[
-                    styles.actionButton,
-                    actionStatus === "cancelled" && styles.dangerButton,
-                    actionStatus === "completed" && styles.successButton,
-                    actionStatus === "waiting_billing" &&
-                      styles.billingButton,
-                    submittingAction && styles.disabledButton,
-                  ]}
-                >
-                  <Text style={styles.actionButtonText}>
-                    {label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
+                return (
+                  <TouchableOpacity
+                    key={actionStatus}
+                    disabled={submittingAction}
+                    onPress={() => openAction(visit, actionStatus)}
+                    style={[
+                      styles.actionButton,
+                      actionStatus === "waiting_billing" &&
+                        styles.billingButton,
+                      actionStatus === "completed" &&
+                        styles.successButton,
+                      actionStatus === "cancelled" &&
+                        styles.dangerButton,
+                      submittingAction && styles.disabledButton,
+                    ]}
+                  >
+                    <Text style={styles.actionButtonText}>
+                      {label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })
+            )}
           </View>
         );
       })}
@@ -784,7 +1118,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 16,
     borderWidth: 2,
-    borderColor: "#2563eb",
+    borderColor: "#b45309",
   },
 
   actionPanelTitle: {
@@ -799,6 +1133,22 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
+  prescriptionSection: {
+    backgroundColor: "#f0fdf4",
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#bbf7d0",
+    marginBottom: 12,
+  },
+
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    marginTop: 0,
+    marginBottom: 8,
+  },
+
   sectionLabel: {
     fontSize: 15,
     fontWeight: "bold",
@@ -806,11 +1156,26 @@ const styles = StyleSheet.create({
     color: "#111827",
   },
 
+  infoText: {
+    fontSize: 13,
+    color: "#6b7280",
+    marginBottom: 12,
+  },
+
   label: {
     fontSize: 14,
     fontWeight: "600",
     marginBottom: 6,
     color: "#111827",
+  },
+
+  row: {
+    flexDirection: "row",
+    gap: 10,
+  },
+
+  halfField: {
+    flex: 1,
   },
 
   input: {
@@ -824,12 +1189,59 @@ const styles = StyleSheet.create({
   },
 
   multilineInput: {
-    minHeight: 100,
+    minHeight: 90,
     textAlignVertical: "top",
   },
 
+  prescriptionRow: {
+    backgroundColor: "#ffffff",
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#bbf7d0",
+    marginBottom: 12,
+  },
+
+  prescriptionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+
+  prescriptionIndex: {
+    fontSize: 15,
+    fontWeight: "bold",
+    color: "#111827",
+  },
+
+  removeButton: {
+    backgroundColor: "#fee2e2",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+
+  removeText: {
+    color: "#b91c1c",
+    fontWeight: "600",
+  },
+
+  addButton: {
+    backgroundColor: "#16a34a",
+    padding: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    marginBottom: 12,
+  },
+
+  addButtonText: {
+    color: "#ffffff",
+    fontWeight: "bold",
+  },
+
   primaryButton: {
-    backgroundColor: "#2563eb",
+    backgroundColor: "#b45309",
     padding: 15,
     borderRadius: 10,
     alignItems: "center",
@@ -895,7 +1307,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
 
-  visitStatusText: {
+  statusText: {
     color: "#ffffff",
     fontWeight: "bold",
     fontSize: 13,
@@ -906,12 +1318,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#6b7280",
     fontStyle: "italic",
-  },
-
-  time: {
-    fontSize: 13,
-    color: "#6b7280",
-    marginTop: 6,
   },
 
   resultPreview: {
@@ -933,21 +1339,38 @@ const styles = StyleSheet.create({
   resultPreviewValue: {
     fontSize: 14,
     color: "#374151",
-    marginBottom: 8,
+    marginBottom: 4,
   },
 
-  resultStatusBadge: {
+  resultStatusPill: {
     alignSelf: "flex-start",
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
-    marginBottom: 8,
+    marginTop: 6,
+    marginBottom: 6,
   },
 
   resultStatusText: {
     color: "#ffffff",
     fontWeight: "bold",
     fontSize: 12,
+  },
+
+  prescriptionPreview: {
+    backgroundColor: "#f9fafb",
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    marginBottom: 10,
+  },
+
+  prescriptionPreviewName: {
+    fontSize: 15,
+    fontWeight: "bold",
+    color: "#111827",
+    marginBottom: 4,
   },
 
   actionTitle: {
@@ -975,7 +1398,7 @@ const styles = StyleSheet.create({
   },
 
   successButton: {
-    backgroundColor: "#16a34a",
+    backgroundColor: "#15803d",
   },
 
   dangerButton: {
