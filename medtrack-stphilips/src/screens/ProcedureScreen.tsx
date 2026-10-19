@@ -79,10 +79,9 @@ const PROCEDURE_STATUSES = ["waiting_procedure", "procedure_in_progress"];
 const MOVES_BY_STATUS: Record<string, string[]> = {
   waiting_procedure: ["procedure_in_progress", "cancelled"],
 
-  procedure_in_progress: [
+    procedure_in_progress: [
     "waiting_lab",
     "waiting_billing",
-    "waiting_dispensary",
     "completed",
     "cancelled",
   ],

@@ -1,6 +1,6 @@
 # MedTrack St. Philips Hospital MVP
 
-MedTrack St. Philips is a hospital workflow and patient management MVP built for a demo environment. It supports the full patient journey from reception registration through consultation, emergency treatment/procedure, laboratory testing, result interpretation, billing, prescription dispensing, printable medical forms, and visit completion.
+MedTrack St. Philips is a hospital workflow and patient management MVP built for a demo environment. It supports the full patient journey from reception registration through consultation, emergency treatment/procedure, laboratory testing, result interpretation, prescription entry, billing, pharmacist dispensing, printable medical forms, and visit completion.
 
 The system is designed to demonstrate a realistic hospital information workflow for St. Philips Hospital, including clinical, laboratory, pharmacy, billing, and administrative operations.
 
@@ -29,6 +29,7 @@ Secure login
 JWT authentication
 Role-based access control
 Protected API routes
+Protected mobile/web routes
 User management for administrators
 ```
 
@@ -96,6 +97,15 @@ pharmacist
 
 This allows clinical staff to correct patient details when they discover errors during their workflow.
 
+The Edit Patient button is available from workflow screens such as:
+
+```txt
+Consultation
+Laboratory
+Interpretation
+Dispensary
+```
+
 ---
 
 ### 4. Consultation Module
@@ -107,8 +117,7 @@ Start consultation
 Record vitals
 Send patient to procedure/treatment room
 Send patient to laboratory
-Send patient to billing
-Send patient to dispensary with prescription
+Send patient to billing with optional prescription
 Complete visit with discharge summary
 Cancel visit
 ```
@@ -120,6 +129,24 @@ Blood pressure systolic/diastolic
 Temperature
 Pulse
 Weight
+```
+
+Prescription entry is available when the doctor sends the patient to billing. This supports patients who do not need laboratory testing.
+
+Example normal no-lab workflow:
+
+```txt
+Consultation
+        ↓
+Send to Billing
+        ↓
+Doctor adds prescription if needed
+        ↓
+Billing records payment
+        ↓
+Billing sends to Dispensary
+        ↓
+Pharmacist dispenses
 ```
 
 ---
@@ -161,10 +188,11 @@ After treatment, the patient can be sent to:
 ```txt
 Laboratory
 Billing
-Dispensary
 Completed
 Cancelled
 ```
+
+For the normal demo workflow, the procedure room does not send patients directly to dispensary. This ensures billing is not skipped.
 
 Access roles:
 
@@ -215,6 +243,7 @@ Doctors can review laboratory results and:
 ```txt
 Read structured lab results
 Add interpretation notes
+Add prescription if medication is needed
 Send patient to billing
 Complete visit
 Cancel visit
@@ -222,11 +251,41 @@ Cancel visit
 
 Critical results are highlighted for faster review.
 
+This supports the normal hospital workflow where the doctor decides medication after seeing laboratory results.
+
+Example lab workflow:
+
+```txt
+Consultation
+        ↓
+Laboratory
+        ↓
+Interpretation
+        ↓
+Doctor reviews result
+        ↓
+Doctor adds prescription
+        ↓
+Send to Billing
+        ↓
+Billing records payment
+        ↓
+Billing sends to Dispensary
+        ↓
+Pharmacist dispenses
+```
+
 ---
 
 ### 8. Prescription Module
 
-Doctors can prescribe one or more medicines when sending a patient to dispensary.
+Doctors can prescribe one or more medicines from:
+
+```txt
+Consultation → Send to Billing
+Interpretation → Send to Billing
+Patient History → Edit Prescription
+```
 
 Prescription fields:
 
@@ -243,11 +302,11 @@ Instructions
 Example:
 
 ```txt
-Amoxicillin 500mg
+Paracetamol 500mg
 Quantity: 10
-Dosage: 1 capsule
-Frequency: Twice daily
-Duration: 5 days
+Dosage: 1 tablet
+Frequency: Three times daily
+Duration: 3 days
 Instructions: Take after food
 ```
 
@@ -261,7 +320,35 @@ Cannot send patient to dispensary without a prescription. Record at least one pr
 
 ---
 
-### 9. Pharmacist Dispensing Module
+### 9. Doctor Edit Prescription Workflow
+
+If a doctor forgets to add a prescription during consultation or interpretation, the doctor can later edit the prescription from patient history while the patient remains in the current department.
+
+This avoids sending the patient backward and avoids skipping workflow steps.
+
+Allowed roles:
+
+```txt
+admin
+doctor
+```
+
+The doctor can edit prescriptions only while the visit is active.
+
+Prescription editing is blocked when:
+
+```txt
+Visit is completed
+Visit is cancelled
+Visit is marked no show
+Pharmacist has already dispensed any medicine
+```
+
+This preserves clinical responsibility and pharmacy safety.
+
+---
+
+### 10. Pharmacist Dispensing Module
 
 Pharmacists can:
 
@@ -288,14 +375,17 @@ Dispensing pharmacist
 Dispensed date/time
 ```
 
+Pharmacists dispense against doctor prescriptions. Pharmacists do not create or edit prescriptions.
+
 ---
 
-### 10. Billing and Payments
+### 11. Billing and Payments
 
 Billing staff can:
 
 ```txt
 View patients waiting for billing
+See prescribed medicines recorded by the doctor
 Capture charged amount
 Capture amount paid
 Select payment method
@@ -316,9 +406,18 @@ insurance
 other
 ```
 
+Billing can view prescriptions but cannot edit them.
+
+If no prescription exists, billing sees a warning:
+
+```txt
+No prescription recorded
+The doctor must record a prescription before this patient can be sent to dispensary.
+```
+
 ---
 
-### 11. Billing Receipt / Invoice
+### 12. Billing Receipt / Invoice
 
 After payment is recorded, the system can generate a printable receipt.
 
@@ -345,7 +444,7 @@ On web, the receipt can be printed using the browser print dialog.
 
 ---
 
-### 12. Printable Medical Form / Visit Summary
+### 13. Printable Medical Form / Visit Summary
 
 The system can generate a printable clinical medical form for the patient during checkout.
 
@@ -400,7 +499,7 @@ On web, the form can be printed or saved as PDF using the browser print dialog.
 
 ---
 
-### 13. Payments and Income Reports
+### 14. Payments and Income Reports
 
 Admin and billing staff can view:
 
@@ -417,7 +516,7 @@ This supports financial accountability and end-of-day reporting.
 
 ---
 
-### 14. Visit Summary / Discharge Note
+### 15. Visit Summary / Discharge Note
 
 When a doctor completes a visit, they can record:
 
@@ -444,7 +543,7 @@ The discharge summary is stored on the visit and displayed in patient history an
 
 ---
 
-### 15. Patient History
+### 16. Patient History
 
 Patient history shows the full clinical trail for each visit:
 
@@ -461,13 +560,14 @@ Dispensed medicines
 Billing/payment information where applicable
 Visit summary / discharge note
 Print medical form button
+Edit prescription button for active visits, doctor/admin only
 ```
 
 This makes the patient record useful for doctors, reception, pharmacists, and administrators.
 
 ---
 
-### 16. Attendance Module
+### 17. Attendance Module
 
 Staff can check in and check out.
 
@@ -475,7 +575,7 @@ Administrators can review attendance activity for operational oversight.
 
 ---
 
-### 17. Admin Overview
+### 18. Admin Overview
 
 Admin users can review operational and financial summaries, including:
 
@@ -674,35 +774,28 @@ Never commit .env files or real secrets to Git.
 
 ## Main Hospital Workflow
 
+### Normal workflow with laboratory
+
 ```txt
 Reception registers patient
         ↓
-Patient waits for consultation
-        ↓
 Doctor starts consultation
         ↓
-Doctor records vitals
-        ↓
-Doctor can send patient to:
-   - Procedure / Treatment Room
-   - Laboratory
-   - Billing
-   - Dispensary
-   - Completed Visit
-        ↓
-Procedure room records emergency treatment/procedure if needed
+Doctor sends patient to laboratory
         ↓
 Laboratory records test results
         ↓
-Doctor interprets results
+Laboratory sends patient to interpretation
         ↓
-Doctor prescribes medication if needed
+Doctor reviews lab results
         ↓
-Patient goes to billing
+Doctor adds prescription if needed
         ↓
-Billing records payment and generates receipt
+Doctor sends patient to billing
         ↓
-Patient goes to dispensary
+Billing sees prescription and records payment
+        ↓
+Billing sends patient to dispensary
         ↓
 Pharmacist dispenses prescribed medication
         ↓
@@ -711,6 +804,129 @@ System prints medical form
 Visit is completed
         ↓
 Full record appears in patient history
+```
+
+---
+
+### Normal workflow without laboratory
+
+```txt
+Reception registers patient
+        ↓
+Doctor starts consultation
+        ↓
+Doctor sends patient to billing
+        ↓
+Doctor adds prescription if needed
+        ↓
+Billing records payment
+        ↓
+Billing sends patient to dispensary
+        ↓
+Pharmacist dispenses medication
+        ↓
+System prints medical form
+        ↓
+Visit is completed
+```
+
+---
+
+### Emergency treatment workflow
+
+```txt
+Reception registers patient
+        ↓
+Doctor starts consultation
+        ↓
+Doctor sends patient to procedure/treatment room
+        ↓
+Treatment officer records emergency procedure/treatment
+        ↓
+Patient is sent to laboratory or billing
+        ↓
+Doctor later reviews results and adds prescription if needed
+        ↓
+Billing records payment
+        ↓
+Dispensary dispenses medication
+        ↓
+Medical form is printed
+```
+
+---
+
+### Doctor forgot prescription workflow
+
+```txt
+Doctor sends patient to billing without prescription
+        ↓
+Billing sees warning: no prescription recorded
+        ↓
+Billing cannot send patient to dispensary
+        ↓
+Doctor opens patient history
+        ↓
+Doctor taps Edit Prescription
+        ↓
+Doctor adds prescription
+        ↓
+Patient remains in billing, not moved backward
+        ↓
+Billing can now send patient to dispensary
+        ↓
+Pharmacist dispenses medication
+```
+
+---
+
+## Role Responsibility Model
+
+```txt
+Reception
+- registers patients
+- searches patients
+- edits patient demographics
+- views patient history
+- does not prescribe medication
+
+Doctor
+- consults patients
+- records vitals
+- sends patients to laboratory/procedure/billing/completion
+- interprets lab results
+- creates prescriptions
+- edits active prescriptions before dispensing
+
+Laboratory
+- records lab results
+- sends patient to interpretation/billing
+- can correct patient demographics
+- does not prescribe medication
+
+Billing
+- views prescribed medicines
+- records payments
+- prints receipts
+- sends patient to dispensary after payment
+- cannot edit prescriptions
+
+Pharmacist
+- views prescribed medicines
+- dispenses prescribed medicines
+- reduces inventory
+- prints medical form
+- can correct patient demographics
+- cannot create or edit prescriptions
+
+Staff / Treatment Room
+- records procedures/treatments
+- sends patient to laboratory/billing/completion
+- does not prescribe medication
+
+Admin
+- full operational oversight
+- can act across modules for demo/support
 ```
 
 ---
@@ -765,6 +981,28 @@ Discharge status
 ```
 
 This creates a meaningful patient history rather than only a department queue.
+
+---
+
+### Prescription Flexibility Without Skipping Steps
+
+Prescriptions can be added:
+
+```txt
+During consultation when sending to billing
+During interpretation after lab results
+Later by doctor from patient history if forgotten
+```
+
+But dispensary still requires:
+
+```txt
+Billing clearance
+Valid prescription
+Pharmacist dispensing
+```
+
+This preserves hospital workflow discipline.
 
 ---
 
@@ -918,7 +1156,25 @@ export default MedicalFormScreen;
 
 ---
 
-### 6. ObjectId cast failed for value "summary"
+### 6. Prescription editor route not found
+
+Ensure this file exists:
+
+```txt
+medtrack-stphilips/app/prescription-editor.tsx
+```
+
+It should contain only:
+
+```tsx
+import PrescriptionEditorScreen from "../src/screens/PrescriptionEditorScreen";
+
+export default PrescriptionEditorScreen;
+```
+
+---
+
+### 7. ObjectId cast failed for value "summary"
 
 Ensure backend payment routes define:
 
@@ -934,7 +1190,7 @@ router.get("/:id", ...)
 
 ---
 
-### 7. Prescription cannot dispense because drug not matched
+### 8. Prescription cannot dispense because drug not matched
 
 The pharmacist screen matches prescribed drug names to inventory drug names.
 
@@ -964,11 +1220,11 @@ For demo reliability, prescribe using the exact inventory drug name shown on the
 
 ---
 
-### 8. Cannot send patient to dispensary without prescription
+### 9. Cannot send patient to dispensary without prescription
 
 This is expected behavior.
 
-The doctor must record at least one prescribed medicine before sending the patient to dispensary.
+The doctor must record at least one prescribed medicine before the patient can be sent to dispensary.
 
 Expected error:
 
@@ -976,9 +1232,37 @@ Expected error:
 Cannot send patient to dispensary without a prescription. Record at least one prescribed medicine first.
 ```
 
+Fix:
+
+```txt
+Doctor opens Patient History
+        ↓
+Tap Edit Prescription
+        ↓
+Add medicine
+        ↓
+Billing can now send patient to dispensary
+```
+
 ---
 
-### 9. Medical form popup blocked
+### 10. Doctor cannot edit prescription
+
+Possible reasons:
+
+```txt
+User is not doctor or admin
+Visit is completed
+Visit is cancelled
+Visit is marked no show
+Pharmacist has already dispensed medicine
+```
+
+This is intentional.
+
+---
+
+### 11. Medical form popup blocked
 
 When printing the medical form, the browser may block the popup.
 
@@ -1016,8 +1300,11 @@ This repository currently supports a strong demo-ready hospital workflow:
 ✅ Lab results entry
 ✅ Interpretation queue
 ✅ Doctor review of lab results
-✅ Doctor prescription capture
+✅ Doctor prescription capture from consultation
+✅ Doctor prescription capture from interpretation
+✅ Doctor edit prescription on active visits
 ✅ Prescription safeguard before dispensary
+✅ Billing sees prescriptions
 ✅ Pharmacist dispensing against prescription
 ✅ Inventory stock reduction
 ✅ Billing queue

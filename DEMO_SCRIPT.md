@@ -5,7 +5,7 @@ This script demonstrates the complete hospital workflow for St. Philips Hospital
 Estimated demo time:
 
 ```txt
-12–18 minutes
+12–20 minutes
 ```
 
 Recommended demo environment:
@@ -66,6 +66,12 @@ Paracetamol
 ```
 
 or whatever exact drug name exists in your inventory.
+
+Important:
+
+```txt
+Use the exact inventory drug name when prescribing.
+```
 
 ---
 
@@ -338,46 +344,12 @@ Confirm.
 Talking point:
 
 ```txt
-The system supports emergency treatment before laboratory testing. The treatment room records the procedure, treatment given, emergency status, outcome, and notes.
+The system supports emergency treatment before laboratory testing. The treatment room records the procedure, treatment given, emergency status, outcome, and notes. The patient is not sent directly to dispensary, so billing is not skipped.
 ```
 
 ---
 
-# Demo Part 5 — Send to Laboratory
-
-If you are not continuing from the procedure room, the doctor can also send the patient directly to laboratory.
-
-As doctor, open:
-
-```txt
-Consultation
-```
-
-Find patient.
-
-Tap:
-
-```txt
-Send to Laboratory
-```
-
-Enter note:
-
-```txt
-Fever and headache. Order malaria parasite test.
-```
-
-Confirm.
-
-Talking point:
-
-```txt
-The doctor routes the patient to laboratory with a clear clinical note.
-```
-
----
-
-# Demo Part 6 — Laboratory Records Results
+# Demo Part 5 — Laboratory Records Results
 
 Logout.
 
@@ -452,7 +424,7 @@ The laboratory does not just move the patient. It records structured results wit
 
 ---
 
-# Demo Part 7 — Doctor Interprets Lab Results
+# Demo Part 6 — Doctor Interprets Lab Results and Adds Prescription
 
 Logout.
 
@@ -485,23 +457,57 @@ Tap:
 Send to Billing
 ```
 
-Enter interpretation note:
+You should now see:
+
+```txt
+Prescription
+```
+
+Add prescription:
+
+```txt
+Drug Name: Paracetamol
+Strength: 500mg
+Quantity: 10
+Dosage: 1 tablet
+Frequency: Three times daily
+Duration: 3 days
+Instructions: Take after food
+```
+
+Important:
+
+```txt
+Use the exact drug name available in inventory.
+```
+
+Interpretation note:
 
 ```txt
 Malaria positive. Start treatment and send to billing.
 ```
 
-Confirm.
+Tap:
+
+```txt
+Confirm Send to Billing
+```
+
+Expected:
+
+```txt
+Send to Billing completed.
+```
 
 Talking point:
 
 ```txt
-The doctor reviews the actual lab result before continuing the patient journey. This keeps the clinical record meaningful.
+The doctor reviews the actual lab result before continuing the patient journey. The prescription is created after interpretation and moves with the patient to billing and then dispensary.
 ```
 
 ---
 
-# Demo Part 8 — Billing and Receipt
+# Demo Part 7 — Billing Sees Prescription and Records Payment
 
 Logout.
 
@@ -525,6 +531,21 @@ Find:
 
 ```txt
 Grace Achieng
+```
+
+Expected:
+
+You should see:
+
+```txt
+Prescribed Medicines
+Paracetamol 500mg
+Quantity: 10
+Dosage: 1 tablet
+Frequency: Three times daily
+Duration: 3 days
+Instructions: Take after food
+Dispensed: No
 ```
 
 Tap:
@@ -561,12 +582,6 @@ Then the system should open or allow access to:
 Billing Receipt
 ```
 
-Talking point:
-
-```txt
-Billing captures the charge, actual payment, method, reference, and staff accountability. The patient receives a professional receipt.
-```
-
 Show receipt fields:
 
 ```txt
@@ -586,70 +601,15 @@ If printing is demonstrated, click:
 🖨️ Print Receipt
 ```
 
----
-
-# Demo Part 9 — Doctor Prescribes Medication
-
-For a cleaner demo, you can either:
-
-```txt
-A. Use a second patient and prescribe directly from consultation, or
-B. Continue with Grace after billing if your workflow allows dispensary entry.
-```
-
-Recommended demo approach:
-
-Before billing, doctor can send to dispensary with prescription. If you want to show prescription separately, register a second patient quickly.
-
-Login as doctor.
-
-Open:
-
-```txt
-Consultation
-```
-
-Start consultation for a patient.
-
-Tap:
-
-```txt
-Send to Dispensary
-```
-
-Enter prescription:
-
-```txt
-Drug Name: Paracetamol
-Strength: 500mg
-Quantity: 10
-Dosage: 1 tablet
-Frequency: Three times daily
-Duration: 3 days
-Instructions: Take after food
-```
-
-Important:
-
-```txt
-Use the exact drug name available in inventory.
-```
-
-Tap:
-
-```txt
-Confirm Send to Dispensary
-```
-
 Talking point:
 
 ```txt
-The doctor writes the prescription electronically. This becomes the instruction the pharmacist follows. The system prevents sending a patient to dispensary without a prescription.
+Billing sees what the doctor prescribed, records the payment, and only then sends the patient to dispensary. Billing cannot edit the prescription, which preserves clinical responsibility.
 ```
 
 ---
 
-# Demo Part 10 — Pharmacist Dispenses Prescription
+# Demo Part 8 — Pharmacist Dispenses Prescription
 
 Logout.
 
@@ -701,6 +661,18 @@ or:
 Dispense All Remaining + Complete Visit
 ```
 
+Expected:
+
+```txt
+Dispensed 10 × Paracetamol ...
+```
+
+or:
+
+```txt
+All pending prescriptions dispensed and visit completed.
+```
+
 Talking point:
 
 ```txt
@@ -709,7 +681,7 @@ The pharmacist dispenses against the doctor prescription, not from a free-text d
 
 ---
 
-# Demo Part 11 — Print Medical Form During Checkout
+# Demo Part 9 — Print Medical Form During Checkout
 
 Still as pharmacist, after selecting the patient, tap:
 
@@ -767,7 +739,7 @@ Allow popups for localhost:8081
 
 ---
 
-# Demo Part 12 — Patient History Shows Full Trail
+# Demo Part 10 — Patient History Shows Full Trail
 
 Login as doctor, reception, or admin.
 
@@ -782,8 +754,6 @@ Search:
 ```txt
 Grace
 ```
-
-or the patient used for prescription.
 
 Tap:
 
@@ -816,7 +786,149 @@ The patient history is not just a list of visits. It contains the clinical and o
 
 ---
 
-# Demo Part 13 — Visit Summary / Discharge Note
+# Demo Part 11 — Doctor Forgot Prescription Recovery Flow
+
+This is a very important demo moment because it shows the system can handle real human mistakes without breaking workflow.
+
+Register or use another patient.
+
+Login as doctor:
+
+```txt
+Email:
+doctor.stphilips@example.com
+
+Password:
+Doctor123
+```
+
+Open:
+
+```txt
+Consultation
+```
+
+Start consultation for the patient.
+
+Tap:
+
+```txt
+Send to Billing
+```
+
+Do not add prescription.
+
+Confirm.
+
+Now logout and login as billing:
+
+```txt
+Email:
+billing.stphilips@example.com
+
+Password:
+Billing123
+```
+
+Open:
+
+```txt
+Billing
+```
+
+Find the patient.
+
+Expected warning:
+
+```txt
+No prescription recorded
+The doctor must record a prescription before this patient can be sent to dispensary.
+```
+
+Try:
+
+```txt
+Send to Dispensary
+```
+
+Expected backend block:
+
+```txt
+Cannot send patient to dispensary without a prescription. Record at least one prescribed medicine first.
+```
+
+Now logout and login as doctor again.
+
+Open:
+
+```txt
+Patients
+```
+
+Search the patient.
+
+Tap:
+
+```txt
+View Visit History
+```
+
+Tap:
+
+```txt
+✍️ Edit Prescription
+```
+
+Add:
+
+```txt
+Drug Name: Paracetamol
+Strength: 500mg
+Quantity: 10
+Dosage: 1 tablet
+Frequency: Three times daily
+Duration: 3 days
+Instructions: Take after food
+```
+
+Tap:
+
+```txt
+Save Prescription
+```
+
+Expected:
+
+```txt
+Prescription updated successfully.
+```
+
+Now logout and login as billing.
+
+Open:
+
+```txt
+Billing
+```
+
+The patient should now show:
+
+```txt
+Prescribed Medicines
+Paracetamol 500mg
+```
+
+Billing can now record payment and send to dispensary.
+
+Talking point:
+
+```txt
+If the doctor forgets a prescription, the patient is not sent backward through the hospital. The doctor corrects the prescription remotely while the patient remains in billing. This preserves workflow discipline and patient safety.
+```
+
+---
+
+# Demo Part 12 — Visit Summary / Discharge Note
 
 If demonstrating a completed visit, doctor should complete a visit and enter:
 
@@ -845,7 +957,7 @@ Closing a visit with a structured discharge note makes the record clinically use
 
 ---
 
-# Demo Part 14 — Admin Income and Operations
+# Demo Part 13 — Admin Income and Operations
 
 Login as admin:
 
@@ -887,7 +999,7 @@ Management can see daily income and which billing staff collected which payments
 
 ---
 
-# Demo Part 15 — Attendance
+# Demo Part 14 — Attendance
 
 Open:
 
@@ -917,15 +1029,14 @@ If time is short, do only this:
 ```txt
 1. Reception registers patient with Tribe and Next of Kin.
 2. Doctor starts consultation.
-3. Doctor sends patient to Procedure Room briefly and records emergency treatment.
-4. Doctor sends patient to Laboratory.
-5. Lab records Malaria Parasite: Positive.
-6. Doctor interprets result and sends to Billing.
-7. Billing records payment and shows receipt.
-8. Doctor prescribes Paracetamol.
-9. Pharmacist dispenses prescription.
-10. Pharmacist prints medical form.
-11. Open Patient History and show full trail.
+3. Doctor sends patient to Laboratory.
+4. Lab records Malaria Parasite: Positive.
+5. Doctor opens Interpretation.
+6. Doctor adds prescription and sends to Billing.
+7. Billing sees prescription, records payment, sends to Dispensary.
+8. Pharmacist dispenses prescription.
+9. Pharmacist prints medical form.
+10. Open Patient History and show full trail.
 ```
 
 This still demonstrates the complete hospital workflow.
@@ -941,11 +1052,10 @@ If extremely short, do only this:
 2. Doctor starts consultation.
 3. Doctor sends to laboratory.
 4. Lab records positive malaria result.
-5. Doctor interprets and sends to billing.
-6. Billing records payment.
-7. Doctor prescribes medicine.
-8. Pharmacist dispenses and prints medical form.
-9. Show patient history.
+5. Doctor interprets, adds prescription, sends to billing.
+6. Billing records payment and sends to dispensary.
+7. Pharmacist dispenses and prints medical form.
+8. Show patient history.
 ```
 
 ---
@@ -964,6 +1074,8 @@ It supports:
 - laboratory results,
 - result interpretation,
 - electronic prescriptions,
+- doctor prescription correction,
+- billing visibility of prescriptions,
 - pharmacist dispensing,
 - billing and receipts,
 - printable medical forms,
@@ -987,6 +1099,7 @@ If one role fails during live demo:
 4. Use a previously completed patient history screen to show the final result.
 5. If prescription matching fails, use the exact drug name shown in Available Drugs Reference.
 6. If medical form popup is blocked, allow popups for localhost:8081.
+7. If doctor forgets prescription, demonstrate Edit Prescription from Patient History.
 ```
 
 ---
@@ -1002,12 +1115,16 @@ Before presenting, confirm:
 ✅ Browser login works for all roles
 ✅ At least one inventory drug exists
 ✅ Drug name is known for prescription demo
-✅ At least one completed patient history is available as fallback
-✅ Medical form prints from patient history
-✅ Medical form prints from dispensary screen
 ✅ Procedure Room appears in menu
 ✅ Edit Patient button appears for doctor/lab/pharmacist
-✅ Prescription safeguard blocks dispensary without prescription
+✅ Interpretation screen shows prescription when sending to billing
+✅ Consultation screen shows prescription when sending to billing
+✅ Billing screen shows prescribed medicines
+✅ Dispensary is blocked without prescription
+✅ Doctor can edit prescription from patient history
+✅ Medical form prints from patient history
+✅ Medical form prints from dispensary screen
+✅ At least one completed patient history is available as fallback
 ✅ README.md is updated
 ✅ DEMO_SCRIPT.md is updated
 ✅ Git push is successful
