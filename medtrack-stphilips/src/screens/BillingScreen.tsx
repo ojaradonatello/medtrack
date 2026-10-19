@@ -817,6 +817,213 @@ if (paymentId) {
 
             <View style={styles.divider} />
 
+                        {(() => {
+              const rxList = Array.isArray((visit as any).prescriptions)
+                ? (visit as any).prescriptions
+                : [];
+
+              if (rxList.length === 0) {
+                return (
+                  <View
+                    style={{
+                      backgroundColor: "#fffbeb",
+                      padding: 12,
+                      borderRadius: 10,
+                      borderWidth: 1,
+                      borderColor: "#fde68a",
+                      marginBottom: 10,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 15,
+                        fontWeight: "bold",
+                        color: "#92400e",
+                        marginBottom: 4,
+                      }}
+                    >
+                      No prescription recorded
+                    </Text>
+
+                    <Text style={{ fontSize: 13, color: "#92400e" }}>
+                      The doctor must record a prescription before this patient can be sent to dispensary.
+                    </Text>
+                  </View>
+                );
+              }
+
+              return (
+                <>
+                  <View
+                    style={{
+                      height: 1,
+                      backgroundColor: "#e5e7eb",
+                      marginVertical: 10,
+                    }}
+                  />
+
+                  <Text
+                    style={{
+                      fontSize: 15,
+                      fontWeight: "bold",
+                      marginBottom: 6,
+                      color: "#111827",
+                    }}
+                  >
+                    Prescribed Medicines
+                  </Text>
+
+                  {rxList.map((rx: any, rxIndex: number) => {
+                    const dispensedQty = Number(rx.dispensedQuantity || 0);
+
+                    const dispenseLabel = rx.dispensed
+                      ? "Yes"
+                      : dispensedQty > 0
+                      ? "Partial"
+                      : "No";
+
+                    const dispenseColor = rx.dispensed
+                      ? "#15803d"
+                      : dispensedQty > 0
+                      ? "#b45309"
+                      : "#6b7280";
+
+                    return (
+                      <View
+                        key={`${rx.drugName || "rx"}-${rxIndex}`}
+                        style={{
+                          backgroundColor: "#f9fafb",
+                          padding: 12,
+                          borderRadius: 10,
+                          borderWidth: 1,
+                          borderColor: "#e5e7eb",
+                          marginBottom: 10,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 15,
+                            fontWeight: "bold",
+                            color: "#111827",
+                            marginBottom: 4,
+                          }}
+                        >
+                          {rx.drugName || "Unknown medicine"}
+                          {rx.strength ? ` ${rx.strength}` : ""}
+                        </Text>
+
+                        <Text
+                          style={{
+                            fontSize: 14,
+                            color: "#374151",
+                            marginBottom: 4,
+                          }}
+                        >
+                          Quantity: {rx.quantity ?? "—"}
+                        </Text>
+
+                        {rx.dosage ? (
+                          <Text
+                            style={{
+                              fontSize: 14,
+                              color: "#374151",
+                              marginBottom: 4,
+                            }}
+                          >
+                            Dosage: {rx.dosage}
+                          </Text>
+                        ) : null}
+
+                        {rx.frequency ? (
+                          <Text
+                            style={{
+                              fontSize: 14,
+                              color: "#374151",
+                              marginBottom: 4,
+                            }}
+                          >
+                            Frequency: {rx.frequency}
+                          </Text>
+                        ) : null}
+
+                        {rx.duration ? (
+                          <Text
+                            style={{
+                              fontSize: 14,
+                              color: "#374151",
+                              marginBottom: 4,
+                            }}
+                          >
+                            Duration: {rx.duration}
+                          </Text>
+                        ) : null}
+
+                        {rx.instructions ? (
+                          <Text
+                            style={{
+                              marginTop: 8,
+                              fontSize: 13,
+                              color: "#6b7280",
+                              fontStyle: "italic",
+                            }}
+                          >
+                            Instructions: {rx.instructions}
+                          </Text>
+                        ) : null}
+
+                        <Text
+                          style={{
+                            fontSize: 14,
+                            color: dispenseColor,
+                            fontWeight: "600",
+                            marginBottom: 4,
+                          }}
+                        >
+                          Dispensed: {dispenseLabel}
+                        </Text>
+
+                        {dispensedQty > 0 ? (
+                          <Text
+                            style={{
+                              fontSize: 14,
+                              color: "#374151",
+                              marginBottom: 4,
+                            }}
+                          >
+                            Dispensed Quantity: {dispensedQty}
+                          </Text>
+                        ) : null}
+
+                        {rx.dispensedAt ? (
+                          <Text
+                            style={{
+                              fontSize: 14,
+                              color: "#374151",
+                              marginBottom: 4,
+                            }}
+                          >
+                            Dispensed At: {formatDate(rx.dispensedAt)}
+                          </Text>
+                        ) : null}
+
+                        {rx.dispensedByName ? (
+                          <Text
+                            style={{
+                              fontSize: 14,
+                              color: "#374151",
+                              marginBottom: 4,
+                            }}
+                          >
+                            Dispensed By: {rx.dispensedByName}
+                          </Text>
+                        ) : null}
+                      </View>
+                    );
+                  })}
+                </>
+              );
+            })()}
+
             <Text style={styles.actionTitle}>
               Billing Actions
             </Text>
