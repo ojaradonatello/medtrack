@@ -1,250 +1,826 @@
-# MedTrack AI
+# MedTrack St. Philips Hospital MVP
 
-MedTrack AI is a smart healthcare inventory and medication management platform designed to help hospitals, clinics, pharmacies, and health centers efficiently manage drugs, patients, dispensing records, stock levels, alerts, and staff activities.
+MedTrack St. Philips is a hospital workflow and patient management MVP built for a demo environment. It supports the full patient journey from reception registration through consultation, laboratory testing, result interpretation, billing, prescription dispensing, and visit completion.
 
-The system combines inventory management, patient tracking, analytics, and AI-powered insights to improve healthcare operations and reduce medication stock-outs.
-
----
-
-## Features
-
-### Patient Management
-
-* Register and manage patients
-* View patient medication history
-* Search and filter patient records
-
-### Drug & Inventory Management
-
-* Add, edit, and remove drugs
-* Track stock quantities
-* Low-stock monitoring
-* Inventory analytics
-
-### Medication Dispensing
-
-* Dispense medication to patients
-* Record dispensing history
-* Track dispensing staff
-* Drug usage analytics
-
-### Staff Management
-
-* User authentication and authorization
-* Staff activity tracking
-* Attendance monitoring
-* Performance analytics
-
-### Alerts & Notifications
-
-* Low-stock alerts
-* Inventory monitoring
-* Real-time notifications
-
-### Dashboard & Analytics
-
-* Drug usage trends
-* Top dispensed drugs
-* Staff activity reports
-* Attendance analytics
-* Inventory insights
+The system is designed to demonstrate a realistic hospital information workflow for St. Philips Hospital, including clinical, laboratory, pharmacy, billing, and administrative operations.
 
 ---
 
-## Tech Stack
+## Core Modules
 
-### Frontend
+### 1. Authentication and User Management
 
-* React Native
-* Expo
-* Expo Router
-* Axios
+Supported roles:
+
+```txt
+admin
+reception
+doctor
+lab
+billing
+pharmacist
+staff
+```
+
+Features:
+
+```txt
+Secure login
+JWT authentication
+Role-based access control
+Protected API routes
+User management for administrators
+```
+
+---
+
+### 2. Reception and Patient Registration
+
+Reception staff can:
+
+```txt
+Register a new patient
+Create the first visit
+Search existing patients
+View patient visit history
+Edit patient details
+```
+
+Patient details include:
+
+```txt
+Full name
+Phone number
+Age
+Gender
+Address
+Tribe
+Next of Kin name
+Next of Kin phone
+```
+
+The Next of Kin fields are displayed across clinical screens as emergency contact information.
+
+---
+
+### 3. Patient Search and Edit
+
+Patients can be searched by:
+
+```txt
+Name
+Phone number
+```
+
+Authorized users can edit patient demographic information, including:
+
+```txt
+Name
+Phone
+Age
+Gender
+Address
+Tribe
+Next of Kin
+```
+
+---
+
+### 4. Consultation Module
+
+Doctors can:
+
+```txt
+Start consultation
+Record vitals
+Send patient to laboratory
+Send patient to billing
+Send patient to dispensary with prescription
+Complete visit with discharge summary
+Cancel visit
+```
+
+Vitals supported:
+
+```txt
+Blood pressure systolic/diastolic
+Temperature
+Pulse
+Weight
+```
+
+---
+
+### 5. Laboratory Module
+
+Laboratory staff can:
+
+```txt
+Start lab test
+Record one or more lab results
+Mark result status
+Add result notes
+Send patient to interpretation
+Send patient to billing
+Cancel visit
+```
+
+Lab result statuses:
+
+```txt
+normal
+abnormal
+critical
+pending
+```
+
+Example:
+
+```txt
+Malaria Parasite: Positive
+CBC - WBC: 11.2
+```
+
+---
+
+### 6. Result Interpretation Module
+
+Doctors can review laboratory results and:
+
+```txt
+Read structured lab results
+Add interpretation notes
+Send patient to billing
+Complete visit
+Cancel visit
+```
+
+Critical results are highlighted for faster review.
+
+---
+
+### 7. Prescription Module
+
+Doctors can prescribe one or more medicines when sending a patient to dispensary.
+
+Prescription fields:
+
+```txt
+Drug name
+Strength
+Quantity
+Dosage
+Frequency
+Duration
+Instructions
+```
+
+Example:
+
+```txt
+Amoxicillin 500mg
+Quantity: 10
+Dosage: 1 capsule
+Frequency: Twice daily
+Duration: 5 days
+Instructions: Take after food
+```
+
+---
+
+### 8. Pharmacist Dispensing Module
+
+Pharmacists can:
+
+```txt
+View patients waiting in dispensary
+View prescribed medicines
+Match prescriptions to inventory drugs
+Dispense selected prescription
+Dispense all remaining prescriptions
+Complete visit
+```
+
+The system reduces inventory stock when medication is dispensed.
+
+Dispensing records include:
+
+```txt
+Drug name
+Strength
+Quantity dispensed
+Prescribing doctor
+Dispensing pharmacist
+Dispensed date/time
+```
+
+---
+
+### 9. Billing and Payments
+
+Billing staff can:
+
+```txt
+View patients waiting for billing
+Capture charged amount
+Capture amount paid
+Select payment method
+Add payment reference
+Add billing note
+Send patient to dispensary
+Complete visit
+Cancel visit
+```
+
+Payment methods:
+
+```txt
+cash
+mobile_money
+bank_transfer
+insurance
+other
+```
+
+---
+
+### 10. Billing Receipt / Invoice
+
+After payment is recorded, the system can generate a printable receipt.
+
+Receipt includes:
+
+```txt
+Receipt number
+Hospital name
+Patient name
+Phone number
+Visit number
+Department
+Charged amount
+Amount paid
+Balance
+Payment method
+Reference
+Collected by
+Payment date
+Billing note
+```
+
+On web, the receipt can be printed using the browser print dialog.
+
+---
+
+### 11. Payments and Income Reports
+
+Admin and billing staff can view:
+
+```txt
+Daily income
+Total charged
+Total paid
+Outstanding balance
+Payment method breakdown
+Collections by billing staff
+```
+
+This supports financial accountability and end-of-day reporting.
+
+---
+
+### 12. Visit Summary / Discharge Note
+
+When a doctor completes a visit, they can record:
+
+```txt
+Diagnosis
+Treatment given
+Advice / follow-up
+Discharge status
+Summary note
+```
+
+Discharge statuses:
+
+```txt
+improved
+stable
+referred
+admitted
+discharged
+other
+```
+
+The discharge summary is stored on the visit and displayed in patient history.
+
+---
+
+### 13. Patient History
+
+Patient history shows the full clinical trail for each visit:
+
+```txt
+Visit number
+Status
+Department
+Registration date
+Vitals
+Laboratory results
+Prescriptions
+Dispensed medicines
+Billing/payment information where applicable
+Visit summary / discharge note
+```
+
+This makes the patient record useful for doctors, reception, pharmacists, and administrators.
+
+---
+
+### 14. Attendance Module
+
+Staff can check in and check out.
+
+Administrators can review attendance activity for operational oversight.
+
+---
+
+### 15. Admin Overview
+
+Admin users can review operational and financial summaries, including:
+
+```txt
+Patient flow
+Department queues
+Income summary
+Payment method totals
+Staff collections
+System activity
+```
+
+---
+
+## Technology Stack
 
 ### Backend
 
-* Node.js
-* Express.js
-* MongoDB
-* Mongoose
-* JWT Authentication
-* Bcrypt
+```txt
+Node.js
+Express.js
+MongoDB
+Mongoose
+JWT authentication
+Role-based authorization
+```
 
-### Development Tools
+### Mobile / Web Frontend
 
-* Git
-* GitHub
-* Postman
+```txt
+React Native
+Expo
+Expo Router
+TypeScript
+React Native Web
+```
+
+The frontend can run as a mobile app through Expo Go and as a web app in the browser.
 
 ---
 
 ## Project Structure
 
-```text
-MedTrack/
-├── backend/
+```txt
+medtrack/
+├── backend-stphilips/
 │   ├── src/
 │   │   ├── controllers/
 │   │   ├── models/
 │   │   ├── routes/
 │   │   ├── middleware/
-│   │   └── app.js
-│   ├── server.js
+│   │   └── services/
 │   └── package.json
 │
-├── mobile/
+├── medtrack-stphilips/
 │   ├── app/
-│   ├── components/
-│   ├── services/
-│   ├── hooks/
+│   ├── src/
+│   │   ├── screens/
+│   │   ├── components/
+│   │   ├── context/
+│   │   ├── services/
+│   │   └── config/
 │   └── package.json
 │
 ├── README.md
-└── .gitignore
+└── DEMO_SCRIPT.md
+```
+
+Important:
+
+```txt
+Use medtrack-stphilips for the current St. Philips app.
+Do not run the old medtrack-mobile folder for this demo.
 ```
 
 ---
 
-## Installation
+## Local Setup
 
-### 1. Clone Repository
+### 1. Backend
+
+Go to backend folder:
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/medtrack-ai.git
-cd medtrack-ai
+cd backend-stphilips
 ```
 
-### 2. Install Backend Dependencies
+Install dependencies:
 
 ```bash
-cd backend
 npm install
 ```
 
-### 3. Configure Environment Variables
-
-Create a `.env` file:
+Create or confirm `.env` contains the required local settings, for example:
 
 ```env
-PORT=5000
-
-MONGO_URI=your_mongodb_connection_string
-
-JWT_SECRET=your_secret_key
+PORT=5001
+MONGO_URI=your_local_or_cloud_mongodb_uri
+JWT_SECRET=your_jwt_secret
 ```
 
-### 4. Start Backend
+Start backend:
 
 ```bash
-npm run dev
+npm start
 ```
 
-or
+Expected:
 
 ```bash
-node server.js
+MongoDB Connected
+Server running on port 5001
 ```
 
-### 5. Install Frontend Dependencies
+---
+
+### 2. Mobile / Web App
+
+Open a separate terminal.
+
+Go to mobile folder:
 
 ```bash
-cd mobile
+cd medtrack-stphilips
+```
+
+Install dependencies:
+
+```bash
 npm install
 ```
 
-### 6. Start Expo
+Start Expo:
 
 ```bash
-npx expo start
+npx expo start -c
+```
+
+For browser demo:
+
+```bash
+w
+```
+
+Then open:
+
+```txt
+http://localhost:8081
+```
+
+For mobile demo:
+
+```txt
+Scan the QR code using Expo Go on Android.
 ```
 
 ---
 
-## API Endpoints
+## Demo Accounts
 
-### Authentication
+Use the seeded demo accounts configured in your local environment.
 
-```http
-POST /api/auth/register
-POST /api/auth/login
+Standard demo roles:
+
+```txt
+Admin
+Reception
+Doctor
+Laboratory
+Billing
+Pharmacist
 ```
 
-### Patients
+For a local demo, typical credentials may be:
 
-```http
-GET    /api/patients
-POST   /api/patients
-PUT    /api/patients/:id
-DELETE /api/patients/:id
+```txt
+admin.stphilips@example.com / Admin123
+reception.stphilips@example.com / Reception123
+doctor.stphilips@example.com / Doctor123
+lab.stphilips@example.com / Lab123
+billing.stphilips@example.com / Billing123
+pharmacist.stphilips@example.com / Pharmacist123
 ```
 
-### Drugs
+Security note:
 
-```http
-GET    /api/drugs
-POST   /api/drugs
-PUT    /api/drugs/:id
-DELETE /api/drugs/:id
-```
-
-### Dispensing
-
-```http
-POST /api/dispense
-GET  /api/history
-```
-
-### Attendance
-
-```http
-GET /api/attendance/today
-```
-
-### Dashboard
-
-```http
-GET /api/dashboard
+```txt
+These credentials are for demo/local use only.
+Change all default passwords before any real deployment.
+Never commit .env files or real secrets to Git.
 ```
 
 ---
 
-## Roadmap
+## Main Hospital Workflow
 
-### Current Version
-
-* Drug Inventory Management
-* Patient Management
-* Medication Dispensing
-* Attendance Tracking
-* Dashboard Analytics
-
-### Upcoming Features
-
-* AI Stock Prediction
-* Prescription OCR
-* Multi-Hospital Support
-* SMS Notifications
-* Advanced Reporting
-* Offline Mode
-* Role-Based Permissions
-* Audit Logs
+```txt
+Reception registers patient
+        ↓
+Patient waits for consultation
+        ↓
+Doctor starts consultation
+        ↓
+Doctor records vitals
+        ↓
+Doctor sends patient to laboratory if needed
+        ↓
+Laboratory records test results
+        ↓
+Doctor interprets results
+        ↓
+Doctor prescribes medication if needed
+        ↓
+Patient goes to billing
+        ↓
+Billing records payment and generates receipt
+        ↓
+Patient goes to dispensary
+        ↓
+Pharmacist dispenses prescribed medication
+        ↓
+Visit is completed
+        ↓
+Full record appears in patient history
+```
 
 ---
 
-## Author
+## Key Demo Talking Points
 
-**Donato Ojara**
+### Patient Safety
 
-Software Engineer | ICT Officer | Full-Stack Developer
+The system captures Next of Kin emergency contact details and displays them prominently on clinical screens.
 
-Email: [ojaradonato4@gmail.com](mailto:ojaradonato4@gmail.com)
+Example:
 
-Location: Uganda
+```txt
+🚨 Next of Kin: John Doe (0788002002)
+```
 
 ---
 
-## License
+### Clinical Completeness
 
-This project is licensed under the MIT License.
+The system stores:
 
-screenshort 
+```txt
+Vitals
+Lab results
+Prescriptions
+Dispensed medicines
+Diagnosis
+Treatment
+Advice
+Discharge status
+```
 
+This creates a meaningful patient history rather than only a department queue.
+
+---
+
+### Financial Accountability
+
+Billing captures:
+
+```txt
+Charged amount
+Amount paid
+Balance
+Payment method
+Reference
+Collected by
+```
+
+Admin can review income and collections by staff.
+
+---
+
+### Pharmacy Control
+
+Pharmacists dispense against doctor prescriptions.
+
+This connects:
+
+```txt
+Doctor prescription
+        ↓
+Pharmacy inventory
+        ↓
+Dispensed record
+        ↓
+Patient history
+```
+
+---
+
+## Troubleshooting
+
+### 1. App runs from the wrong folder
+
+If you see paths like:
+
+```txt
+medtrack-mobile/node_modules
+```
+
+stop Expo and run from:
+
+```txt
+medtrack-stphilips
+```
+
+Correct command:
+
+```bash
+cd /d/projects/medtrack/medtrack-stphilips
+npx expo start -c
+```
+
+---
+
+### 2. Browser shows old UI
+
+Hard refresh:
+
+```bash
+Ctrl + Shift + R
+```
+
+Restart Expo with cache clear:
+
+```bash
+npx expo start -c
+```
+
+---
+
+### 3. JSX text appears literally
+
+If the screen shows:
+
+```txt
+{patient.nextOfKinName || "—"}
+```
+
+as plain text, the JSX expression was accidentally placed inside quotes.
+
+Correct:
+
+```tsx
+<Text>
+  Next of Kin: {patient.nextOfKinName || "—"}
+</Text>
+```
+
+Wrong:
+
+```tsx
+<Text>
+  {"Next of Kin: {patient.nextOfKinName || '—'}"}
+</Text>
+```
+
+---
+
+### 4. Receipt route not found
+
+Ensure this file exists:
+
+```txt
+medtrack-stphilips/app/receipt.tsx
+```
+
+It should contain only:
+
+```tsx
+import ReceiptScreen from "../src/screens/ReceiptScreen";
+
+export default ReceiptScreen;
+```
+
+---
+
+### 5. ObjectId cast failed for value "summary"
+
+Ensure backend payment routes define:
+
+```js
+router.get("/summary", ...)
+```
+
+before:
+
+```js
+router.get("/:id", ...)
+```
+
+---
+
+### 6. Prescription cannot dispense because drug not matched
+
+The pharmacist screen matches prescribed drug names to inventory drug names.
+
+Use the exact drug name from inventory, for example:
+
+```txt
+Paracetamol
+Amoxicillin Capsules
+Metronidazole Tablets
+```
+
+If the prescription says:
+
+```txt
+Paracetamol 500mg
+```
+
+but inventory only has:
+
+```txt
+Panadol
+```
+
+the system may not match them automatically.
+
+For demo reliability, prescribe using the exact inventory drug name shown on the pharmacist screen.
+
+---
+
+## Current MVP Status
+
+This repository currently supports a strong demo-ready hospital workflow:
+
+```txt
+✅ Patient registration
+✅ Tribe and Next of Kin capture
+✅ Patient search
+✅ Edit patient
+✅ Consultation queue
+✅ Vitals capture
+✅ Laboratory queue
+✅ Lab results entry
+✅ Interpretation queue
+✅ Doctor review of lab results
+✅ Doctor prescription capture
+✅ Pharmacist dispensing against prescription
+✅ Inventory stock reduction
+✅ Billing queue
+✅ Payment capture
+✅ Billing receipt / invoice
+✅ Payments and income report
+✅ Collections by billing staff
+✅ Visit summary / discharge note
+✅ Patient history with full clinical trail
+✅ Attendance
+✅ Admin overview
+✅ Role-based protection
+```
+
+---
+
+## Disclaimer
+
+This is an MVP/demo system for hospital workflow demonstration.
+
+Before real clinical deployment, additional work is required, including:
+
+```txt
+Production-grade authentication
+Audit logging review
+Data encryption
+Role permission review
+Backup and recovery
+Real data protection compliance review
+Drug inventory master data validation
+Clinical safety review by licensed professionals
+Penetration testing
+Hosting and uptime monitoring
+```

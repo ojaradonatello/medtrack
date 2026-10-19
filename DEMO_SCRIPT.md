@@ -176,7 +176,7 @@ Save Changes
 Talking point:
 
 ```txt
-Reception can correct patient details later without deleting the patient or creating duplicates.
+Reception can correct patient details later without deleting the patient or creating duplicates. Doctors, laboratory staff, and pharmacists can also correct patient details when they find errors.
 ```
 
 ---
@@ -229,13 +229,131 @@ The doctor acknowledges the patient and begins the consultation. The system trac
 
 ---
 
-# Demo Part 4 — Send to Laboratory
+# Demo Part 4 — Emergency Procedure / Treatment Room
+
+This demonstrates the hospital feedback that a doctor may send a patient to treatment before laboratory testing.
 
 With Grace now in:
 
 ```txt
 in consultation
 ```
+
+Tap:
+
+```txt
+Send to Procedure Room
+```
+
+Enter note:
+
+```txt
+Patient needs emergency wound dressing before lab.
+```
+
+Confirm.
+
+Expected:
+
+```txt
+Send to Procedure Room completed.
+```
+
+Now logout or switch role.
+
+Login as staff if available:
+
+```txt
+Email:
+staff.stphilips@example.com
+
+Password:
+Staff123
+```
+
+If a staff account is not available, use admin:
+
+```txt
+Email:
+admin.stphilips@example.com
+
+Password:
+Admin123
+```
+
+Open:
+
+```txt
+Procedure Room
+```
+
+Find:
+
+```txt
+Grace Achieng
+```
+
+Tap:
+
+```txt
+Start / Record Procedure
+```
+
+Enter:
+
+```txt
+Procedure Name: Wound dressing
+Treatment Given: Tetanus toxoid given
+Emergency: Yes
+Outcome: Stable
+Procedure Notes: Patient arrived with bleeding hand wound. Dressing done.
+```
+
+Tap:
+
+```txt
+Confirm Start / Record Procedure
+```
+
+Expected:
+
+```txt
+procedure in progress
+```
+
+Then tap:
+
+```txt
+Send to Laboratory
+```
+
+Enter note:
+
+```txt
+Wound stabilized. Send for lab tests.
+```
+
+Confirm.
+
+Talking point:
+
+```txt
+The system supports emergency treatment before laboratory testing. The treatment room records the procedure, treatment given, emergency status, outcome, and notes.
+```
+
+---
+
+# Demo Part 5 — Send to Laboratory
+
+If you are not continuing from the procedure room, the doctor can also send the patient directly to laboratory.
+
+As doctor, open:
+
+```txt
+Consultation
+```
+
+Find patient.
 
 Tap:
 
@@ -259,7 +377,7 @@ The doctor routes the patient to laboratory with a clear clinical note.
 
 ---
 
-# Demo Part 5 — Laboratory Records Results
+# Demo Part 6 — Laboratory Records Results
 
 Logout.
 
@@ -334,7 +452,7 @@ The laboratory does not just move the patient. It records structured results wit
 
 ---
 
-# Demo Part 6 — Doctor Interprets Lab Results
+# Demo Part 7 — Doctor Interprets Lab Results
 
 Logout.
 
@@ -383,7 +501,7 @@ The doctor reviews the actual lab result before continuing the patient journey. 
 
 ---
 
-# Demo Part 7 — Billing and Receipt
+# Demo Part 8 — Billing and Receipt
 
 Logout.
 
@@ -470,7 +588,7 @@ If printing is demonstrated, click:
 
 ---
 
-# Demo Part 8 — Doctor Prescribes Medication
+# Demo Part 9 — Doctor Prescribes Medication
 
 For a cleaner demo, you can either:
 
@@ -526,12 +644,12 @@ Confirm Send to Dispensary
 Talking point:
 
 ```txt
-The doctor writes the prescription electronically. This becomes the instruction the pharmacist follows.
+The doctor writes the prescription electronically. This becomes the instruction the pharmacist follows. The system prevents sending a patient to dispensary without a prescription.
 ```
 
 ---
 
-# Demo Part 9 — Pharmacist Dispenses Prescription
+# Demo Part 10 — Pharmacist Dispenses Prescription
 
 Logout.
 
@@ -591,7 +709,65 @@ The pharmacist dispenses against the doctor prescription, not from a free-text d
 
 ---
 
-# Demo Part 10 — Patient History Shows Full Trail
+# Demo Part 11 — Print Medical Form During Checkout
+
+Still as pharmacist, after selecting the patient, tap:
+
+```txt
+🖨️ Print Medical Form
+```
+
+Expected:
+
+A new browser tab/window opens with:
+
+```txt
+ST. PHILIPS HOSPITAL
+Medical Form / Visit Summary
+```
+
+The form should include:
+
+```txt
+Patient information
+Next of Kin
+Visit information
+Vitals
+Procedures/treatments
+Laboratory results
+Prescriptions
+Dispensed medicines
+Diagnosis/discharge summary
+Signature lines
+```
+
+Click:
+
+```txt
+Print
+```
+
+or:
+
+```txt
+Save as PDF
+```
+
+Talking point:
+
+```txt
+During checkout, the hospital can print a medical form for the patient. This gives the patient a physical clinical summary and supports record keeping.
+```
+
+If popup is blocked:
+
+```txt
+Allow popups for localhost:8081
+```
+
+---
+
+# Demo Part 12 — Patient History Shows Full Trail
 
 Login as doctor, reception, or admin.
 
@@ -624,21 +800,23 @@ Next of Kin
 Visit number
 Status
 Vitals
+Procedures / Treatments
 Laboratory Results
 Prescriptions
 Dispensed status
 Visit Summary / Discharge Note if completed
+Print Medical Form button
 ```
 
 Talking point:
 
 ```txt
-The patient history is not just a list of visits. It contains the clinical and operational trail: vitals, lab results, prescriptions, dispensing, billing, and discharge summary.
+The patient history is not just a list of visits. It contains the clinical and operational trail: vitals, procedures, lab results, prescriptions, dispensing, billing, and discharge summary.
 ```
 
 ---
 
-# Demo Part 11 — Visit Summary / Discharge Note
+# Demo Part 13 — Visit Summary / Discharge Note
 
 If demonstrating a completed visit, doctor should complete a visit and enter:
 
@@ -667,7 +845,7 @@ Closing a visit with a structured discharge note makes the record clinically use
 
 ---
 
-# Demo Part 12 — Admin Income and Operations
+# Demo Part 14 — Admin Income and Operations
 
 Login as admin:
 
@@ -709,7 +887,7 @@ Management can see daily income and which billing staff collected which payments
 
 ---
 
-# Demo Part 13 — Attendance
+# Demo Part 15 — Attendance
 
 Open:
 
@@ -739,16 +917,36 @@ If time is short, do only this:
 ```txt
 1. Reception registers patient with Tribe and Next of Kin.
 2. Doctor starts consultation.
-3. Doctor sends to Laboratory.
-4. Lab records Malaria Parasite: Positive.
-5. Doctor interprets result and sends to Billing.
-6. Billing records payment and shows receipt.
-7. Doctor prescribes Paracetamol.
-8. Pharmacist dispenses prescription.
-9. Open Patient History and show full trail.
+3. Doctor sends patient to Procedure Room briefly and records emergency treatment.
+4. Doctor sends patient to Laboratory.
+5. Lab records Malaria Parasite: Positive.
+6. Doctor interprets result and sends to Billing.
+7. Billing records payment and shows receipt.
+8. Doctor prescribes Paracetamol.
+9. Pharmacist dispenses prescription.
+10. Pharmacist prints medical form.
+11. Open Patient History and show full trail.
 ```
 
 This still demonstrates the complete hospital workflow.
+
+---
+
+# Ultra-Short 3-Minute Demo
+
+If extremely short, do only this:
+
+```txt
+1. Register patient.
+2. Doctor starts consultation.
+3. Doctor sends to laboratory.
+4. Lab records positive malaria result.
+5. Doctor interprets and sends to billing.
+6. Billing records payment.
+7. Doctor prescribes medicine.
+8. Pharmacist dispenses and prints medical form.
+9. Show patient history.
+```
 
 ---
 
@@ -762,11 +960,13 @@ MedTrack St. Philips demonstrates a complete hospital workflow from patient arri
 It supports:
 - reception registration,
 - doctor consultation,
+- emergency procedure/treatment room,
 - laboratory results,
 - result interpretation,
 - electronic prescriptions,
 - pharmacist dispensing,
 - billing and receipts,
+- printable medical forms,
 - income reporting,
 - attendance,
 - and a full patient history.
@@ -786,6 +986,7 @@ If one role fails during live demo:
 3. Confirm Expo is running from medtrack-stphilips, not medtrack-mobile.
 4. Use a previously completed patient history screen to show the final result.
 5. If prescription matching fails, use the exact drug name shown in Available Drugs Reference.
+6. If medical form popup is blocked, allow popups for localhost:8081.
 ```
 
 ---
@@ -802,6 +1003,11 @@ Before presenting, confirm:
 ✅ At least one inventory drug exists
 ✅ Drug name is known for prescription demo
 ✅ At least one completed patient history is available as fallback
+✅ Medical form prints from patient history
+✅ Medical form prints from dispensary screen
+✅ Procedure Room appears in menu
+✅ Edit Patient button appears for doctor/lab/pharmacist
+✅ Prescription safeguard blocks dispensary without prescription
 ✅ README.md is updated
 ✅ DEMO_SCRIPT.md is updated
 ✅ Git push is successful
