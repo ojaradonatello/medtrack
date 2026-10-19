@@ -1198,14 +1198,46 @@ exports.moveVisit = async (req, res) => {
       }));
     }
 
-    if (prescriptionData !== null) {
+        if (prescriptionData !== null) {
+      if (role !== "admin" && role !== "doctor") {
+        return res.status(403).json({
+          error: "Only doctors and administrators can edit prescriptions",
+        });
+      }
+
+      if (
+        visit.status === "completed" ||
+        visit.status === "cancelled" ||
+        visit.status === "no_show"
+      ) {
+        return res.status(400).json({
+          error:
+            "Cannot edit prescriptions after the visit is completed, cancelled, or marked no show",
+        });
+      }
+
+      const alreadyDispensed =
+        Array.isArray(visit.prescriptions) &&
+        visit.prescriptions.some(
+          (item) =>
+            item &&
+            (item.dispensed === true ||
+              Number(item.dispensedQuantity || 0) > 0)
+        );
+
+      if (alreadyDispensed) {
+        return res.status(400).json({
+          error:
+            "Cannot edit prescriptions after dispensing has started. Pharmacist must complete or cancel current dispensing first.",
+        });
+      }
+
       visit.prescriptions = prescriptionData.map((item) => ({
         ...item,
         prescribedBy: req.user?.id || req.user?._id,
         prescribedAt: new Date(),
       }));
     }
-
     if (procedureData !== null) {
       visit.procedures = procedureData.map((item) => ({
         ...item,

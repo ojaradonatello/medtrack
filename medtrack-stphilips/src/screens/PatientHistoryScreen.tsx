@@ -36,6 +36,8 @@ function humanize(value?: string) {
   return value.replace(/_/g, " ");
 }
 
+const TERMINAL_VISIT_STATUSES = ["completed", "cancelled", "no_show"];
+
 function formatDate(value?: string) {
   if (!value) return "—";
 
@@ -323,6 +325,29 @@ export default function PatientHistoryScreen() {
               >
                 <Text style={styles.printButtonText}>
                   🖨️ Print Medical Form
+                </Text>
+              </TouchableOpacity>
+            ) : null}
+             
+                        {!TERMINAL_VISIT_STATUSES.includes(visit.status) && visit._id ? (
+              <TouchableOpacity
+                style={{
+                  backgroundColor: "#16a34a",
+                  padding: 12,
+                  borderRadius: 10,
+                  alignItems: "center",
+                  marginBottom: 10,
+                }}
+                onPress={() =>
+                  router.push(
+                    `/prescription-editor?visitId=${encodeURIComponent(
+                      visit._id
+                    )}`
+                  )
+                }
+              >
+                <Text style={{ color: "#fff", fontWeight: "bold" }}>
+                  ✍️ Edit Prescription
                 </Text>
               </TouchableOpacity>
             ) : null}
