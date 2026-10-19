@@ -46,6 +46,10 @@ type Prescription = {
   instructions?: string;
   prescribedBy?: string;
   prescribedAt?: string;
+  dispensed?: boolean;
+  dispensedQuantity?: number;
+  dispensedAt?: string;
+  dispensedByName?: string;
 };
 
 type Visit = {
@@ -105,7 +109,6 @@ const MOVES_BY_STATUS: Record<string, string[]> = {
   in_consultation: [
     "waiting_lab",
     "waiting_billing",
-    "waiting_dispensary",
     "waiting_procedure",
     "completed",
     "cancelled",
@@ -116,8 +119,8 @@ const ACTION_LABELS: Record<string, string> = {
   in_consultation: "Start Consultation",
   waiting_lab: "Send to Laboratory",
   waiting_billing: "Send to Billing",
-  waiting_dispensary: "Send to Dispensary",
   waiting_procedure: "Send to Procedure Room",
+  waiting_dispensary: "Send to Dispensary",
   completed: "Complete Visit",
   cancelled: "Cancel Visit",
   no_show: "Mark No Show",
@@ -126,9 +129,10 @@ const ACTION_LABELS: Record<string, string> = {
 const ACTION_NOTES: Record<string, string> = {
   in_consultation: "Doctor started consultation",
   waiting_lab: "Doctor sent patient to laboratory",
-    waiting_procedure:
+  waiting_billing:
+    "Doctor sent patient to billing and recorded prescription if needed",
+  waiting_procedure:
     "Doctor sent patient to procedure/treatment room",
-  waiting_billing: "Doctor sent patient to billing",
   waiting_dispensary:
     "Doctor prescribed medication and sent to dispensary",
   completed: "Consultation completed and visit closed",
@@ -170,6 +174,10 @@ function getStatusColor(status: string) {
       return "#2563eb";
     case "in_consultation":
       return "#7c3aed";
+    case "waiting_procedure":
+      return "#9333ea";
+    case "procedure_in_progress":
+      return "#6d28d9";
     case "waiting_lab":
       return "#0891b2";
     case "lab_in_progress":
@@ -407,7 +415,10 @@ export default function ConsultationScreen() {
     setAdvice("");
     setDischargeStatus("improved");
 
-    if (status === "waiting_dispensary") {
+    if (
+      status === "waiting_billing" ||
+      status === "waiting_dispensary"
+    ) {
       setPrescriptions([makeEmptyPrescription()]);
     } else {
       setPrescriptions([]);
@@ -548,7 +559,10 @@ export default function ConsultationScreen() {
       return { error: null, data: undefined };
     }
 
-    if (pendingAction.status !== "waiting_dispensary") {
+    if (
+      pendingAction.status !== "waiting_billing" &&
+      pendingAction.status !== "waiting_dispensary"
+    ) {
       return { error: null, data: undefined };
     }
 
@@ -574,10 +588,17 @@ export default function ConsultationScreen() {
       );
 
     if (cleaned.length === 0) {
+      if (pendingAction.status === "waiting_dispensary") {
+        return {
+          error:
+            "Add at least one prescription before sending the patient to dispensary.",
+          data: null,
+        };
+      }
+
       return {
-        error:
-          "Add at least one prescription before sending the patient to dispensary.",
-        data: null,
+        error: null,
+        data: undefined,
       };
     }
 
@@ -791,12 +812,12 @@ export default function ConsultationScreen() {
         />
       }
     >
-      <Text style={styles.title}>👨‍⚕️ Consultation</Text>
+      <Text style={styles.title}>👨‍️ Consultation</Text>
 
       <Text style={styles.subtitle}>
         Review patients waiting for doctor consultation, update vitals, write
-        prescriptions, and route patients to laboratory, billing, dispensary,
-        or completion.
+        prescriptions when sending to billing, and route patients to
+        laboratory, procedure room, billing, or completion.
       </Text>
 
       <Text style={styles.metaText}>
@@ -918,13 +939,17 @@ export default function ConsultationScreen() {
             </View>
           ) : null}
 
-          {pendingAction.status === "waiting_dispensary" ? (
+          {pendingAction.status === "waiting_billing" ||
+          pendingAction.status === "waiting_dispensary" ? (
             <View style={styles.prescriptionSection}>
-              <Text style={styles.sectionTitle}>Prescription</Text>
+              <Text style={styles.sectionTitle}>
+                Prescription {pendingAction.status === "waiting_billing" ? "(optional)" : ""}
+              </Text>
 
               <Text style={styles.infoText}>
-                Add medicines prescribed to the patient before sending to
-                dispensary.
+                {pendingAction.status === "waiting_billing"
+                  ? "Add medicines if the patient needs medication. The prescription will move with the patient to billing and then to dispensary. If no medicine is needed, leave this empty."
+                  : "Add medicines prescribed to the patient before sending to dispensary."}
               </Text>
 
               {prescriptions.map((row, index) => (
@@ -952,7 +977,7 @@ export default function ConsultationScreen() {
                     onChangeText={(value) =>
                       updatePrescription(index, "drugName", value)
                     }
-                    placeholder="e.g. Amoxicillin"
+                    placeholder="e.g. Paracetamol"
                     editable={!submittingAction}
                   />
 
@@ -994,7 +1019,7 @@ export default function ConsultationScreen() {
                         onChangeText={(value) =>
                           updatePrescription(index, "dosage", value)
                         }
-                        placeholder="e.g. 1 capsule"
+                        placeholder="e.g. 1 tablet"
                         editable={!submittingAction}
                       />
                     </View>
@@ -1007,7 +1032,7 @@ export default function ConsultationScreen() {
                         onChangeText={(value) =>
                           updatePrescription(index, "frequency", value)
                         }
-                        placeholder="e.g. Twice daily"
+                        placeholder="e.g. Three times daily"
                         editable={!submittingAction}
                       />
                     </View>
@@ -1020,7 +1045,7 @@ export default function ConsultationScreen() {
                     onChangeText={(value) =>
                       updatePrescription(index, "duration", value)
                     }
-                    placeholder="e.g. 5 days"
+                    placeholder="e.g. 3 days"
                     editable={!submittingAction}
                   />
 
@@ -1295,13 +1320,35 @@ export default function ConsultationScreen() {
                         {rx.instructions}
                       </Text>
                     ) : null}
+
+                    <Text
+                      style={[
+                        styles.detail,
+                        {
+                          color: rx.dispensed
+                            ? "#15803d"
+                            : Number(rx.dispensedQuantity || 0) > 0
+                            ? "#b45309"
+                            : "#6b7280",
+                          fontWeight: "600",
+                        },
+                      ]}
+                    >
+                      Dispensed:{" "}
+                      {rx.dispensed
+                        ? "Yes"
+                        : Number(rx.dispensedQuantity || 0) > 0
+                        ? "Partial"
+                        : "No"}
+                    </Text>
                   </View>
                 ))}
               </>
             ) : null}
-             
 
-                         {patient._id ? (
+            <View style={styles.divider} />
+
+            {patient._id ? (
               <TouchableOpacity
                 style={{
                   backgroundColor: "#ca8a04",
@@ -1325,8 +1372,6 @@ export default function ConsultationScreen() {
                 </Text>
               </TouchableOpacity>
             ) : null}
-
-            <View style={styles.divider} />
 
             <Text style={styles.actionTitle}>
               Consultation Actions
@@ -1357,7 +1402,7 @@ export default function ConsultationScreen() {
                         styles.billingButton,
                       actionStatus === "waiting_lab" &&
                         styles.labButton,
-                        actionStatus === "waiting_procedure" &&
+                      actionStatus === "waiting_procedure" &&
                         styles.procedureButton,
                       submittingAction && styles.disabledButton,
                     ]}
@@ -1714,9 +1759,10 @@ const styles = StyleSheet.create({
   labButton: {
     backgroundColor: "#0891b2",
   },
+
   procedureButton: {
-  backgroundColor: "#7c3aed",
-},
+    backgroundColor: "#7c3aed",
+  },
 
   billingButton: {
     backgroundColor: "#ca8a04",
