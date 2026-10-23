@@ -99,9 +99,14 @@ const MENU_SECTIONS: MenuSection[] = [
     ],
   },
 
-      {
+   {
     title: "Finance",
     items: [
+      {
+        label: "Billing Counter",
+        route: "/billing-counter",
+        icon: "🧾",
+      },
       {
         label: "Billing",
         route: "/billing",

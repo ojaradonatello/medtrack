@@ -22,6 +22,7 @@ app.use("/api/dashboard", require("./routes/dashboardRoutes"));
 app.use("/api/history", require("./routes/historyRoutes"));
 app.use("/api/attendance", require("./routes/attendanceRoutes"));
 app.use("/api/payments", require("./routes/paymentRoutes"));
+app.use("/api/bills", require("./routes/billingRoutes"));
 app.use("/api/anomalies", require("./routes/anomalyRoutes"));
 app.use("/api/visits", require("./routes/visitRoutes"));
 app.use("/api/reception", require("./routes/receptionRoutes"));
