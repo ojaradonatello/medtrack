@@ -108,6 +108,11 @@ const MENU_SECTIONS: MenuSection[] = [
         icon: "🧾",
       },
       {
+        label: "Patient Ledger",
+        route: "/patient-ledger",
+        icon: "📒",
+      },
+      {
         label: "Billing",
         route: "/billing",
         icon: "💳",
