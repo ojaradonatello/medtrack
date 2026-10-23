@@ -1425,7 +1425,30 @@ export default function BillingCounterScreen() {
               </TouchableOpacity>
             </>
           ) : null}
-
+                   <TouchableOpacity
+            style={{
+              backgroundColor: "#7c3aed",
+              padding: 14,
+              borderRadius: 10,
+              alignItems: "center",
+              marginTop: 12,
+            }}
+            onPress={() =>
+              router.push(
+                `/bill-receipt?id=${encodeURIComponent(currentBill._id)}`
+              )
+            }
+          >
+            <Text
+              style={{
+                color: "#ffffff",
+                fontWeight: "bold",
+                fontSize: 16,
+              }}
+            >
+              🖨️ Print Bill Receipt
+            </Text>
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.secondaryButton}
             onPress={resetNewBill}

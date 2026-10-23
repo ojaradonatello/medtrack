@@ -77,6 +77,13 @@ export const ROUTE_ROLES: Record<string, AppRole[]> = {
   ],
 
   "/daily-cashier": ["admin", "billing", "pharmacist"],
+  "/bill-receipt": [
+  "admin",
+  "billing",
+  "reception",
+  "pharmacist",
+  "staff",
+],
 
   "/payments": ["admin", "billing"],
 
