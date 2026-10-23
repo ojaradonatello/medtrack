@@ -113,6 +113,11 @@ const MENU_SECTIONS: MenuSection[] = [
         icon: "📒",
       },
       {
+        label: "Daily Cashier",
+        route: "/daily-cashier",
+        icon: "📊",
+      },
+      {
         label: "Billing",
         route: "/billing",
         icon: "💳",

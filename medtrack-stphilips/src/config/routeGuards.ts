@@ -18,12 +18,27 @@ export const ROUTE_ROLES: Record<string, AppRole[]> = {
 
   "/patient-history": ["admin", "reception", "doctor"],
 
-  "/edit-patient": [ "admin", "reception","doctor", "lab", "pharmacist",],
-  "/medical-form": [ "admin","reception", "doctor", "lab", "pharmacist", "staff",],
+  "/edit-patient": [
+    "admin",
+    "reception",
+    "doctor",
+    "lab",
+    "pharmacist",
+  ],
+
+  "/medical-form": [
+    "admin",
+    "reception",
+    "doctor",
+    "lab",
+    "pharmacist",
+    "staff",
+  ],
+
   "/prescription-editor": ["admin", "doctor"],
 
   "/queue": ["admin", "reception"],
-  
+
   "/receipt": ["admin", "billing"],
 
   "/worklist": [
@@ -38,27 +53,30 @@ export const ROUTE_ROLES: Record<string, AppRole[]> = {
   "/consultation": ["admin", "doctor"],
 
   "/laboratory": ["admin", "lab"],
+
   "/procedure": ["admin", "doctor", "staff"],
 
   "/interpretation": ["admin", "doctor"],
 
   "/billing": ["admin", "billing"],
-  "/billing-counter": [
-  
-  "admin",
-  "billing",
-  "reception",
-  "pharmacist",
-  "staff",
-],
 
-"/patient-ledger": [
-  "admin",
-  "billing",
-  "reception",
-  "pharmacist",
-  "staff",
-],
+  "/billing-counter": [
+    "admin",
+    "billing",
+    "reception",
+    "pharmacist",
+    "staff",
+  ],
+
+  "/patient-ledger": [
+    "admin",
+    "billing",
+    "reception",
+    "pharmacist",
+    "staff",
+  ],
+
+  "/daily-cashier": ["admin", "billing", "pharmacist"],
 
   "/payments": ["admin", "billing"],
 
