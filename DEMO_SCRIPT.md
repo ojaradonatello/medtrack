@@ -1,11 +1,16 @@
-# MedTrack St. Philips Demo Script
+# MedTrack St. Philips Demo Script — Hospital Workflow + Billing Pilot
 
-This script demonstrates the complete hospital workflow for St. Philips Hospital.
+This script demonstrates both:
+
+```txt
+1. The full hospital patient workflow
+2. The new billing pilot workflow for clinics, drug shops, and walk-in customers
+```
 
 Estimated demo time:
 
 ```txt
-12–20 minutes
+15–25 minutes
 ```
 
 Recommended demo environment:
@@ -18,7 +23,7 @@ One phone or emulator optional for mobile demonstration
 
 ---
 
-## Before the Demo
+# Before the Demo
 
 Start backend:
 
@@ -59,6 +64,12 @@ Hard refresh:
 Ctrl + Shift + R
 ```
 
+Better: open an Incognito/Private window and go to:
+
+```txt
+http://localhost:8081
+```
+
 Prepare one known inventory drug name, for example:
 
 ```txt
@@ -75,15 +86,48 @@ Use the exact inventory drug name when prescribing.
 
 ---
 
-# Demo Part 1 — Reception Registration
+# Demo Accounts
+
+```txt
+Admin
+email: admin.stphilips@example.com
+password: Admin123
+
+Reception
+email: reception.stphilips@example.com
+password: Reception123
+
+Doctor
+email: doctor.stphilips@example.com
+password: Doctor123
+
+Laboratory
+email: lab.stphilips@example.com
+password: Lab123
+
+Billing
+email: billing.stphilips@example.com
+password: Billing123
+
+Pharmacist
+email: pharmacist.stphilips@example.com
+password: Pharmacist123
+
+Staff / Treatment Room
+email: staff.stphilips@example.com
+password: Staff123
+```
+
+If staff account does not exist, use admin for Procedure Room demo.
+
+---
+
+# Part 1 — Hospital Registration
 
 Login as reception:
 
 ```txt
-Email:
 reception.stphilips@example.com
-
-Password:
 Reception123
 ```
 
@@ -131,73 +175,14 @@ Reception captures patient identity, contact details, tribe, and emergency next 
 
 ---
 
-# Demo Part 2 — Patient Search and Edit
-
-Still as reception, open:
-
-```txt
-Patients
-```
-
-Search:
-
-```txt
-Grace
-```
-
-or:
-
-```txt
-0788005001
-```
-
-Expected:
-
-```txt
-Grace Achieng
-Phone: 0788005001
-Tribe: Acholi
-Next of Kin: John Achieng
-```
-
-Tap:
-
-```txt
-✏️ Edit Patient
-```
-
-Change:
-
-```txt
-Address: Gulu Town
-Next of Kin Phone: 0788005003
-```
-
-Tap:
-
-```txt
-Save Changes
-```
-
-Talking point:
-
-```txt
-Reception can correct patient details later without deleting the patient or creating duplicates. Doctors, laboratory staff, and pharmacists can also correct patient details when they find errors.
-```
-
----
-
-# Demo Part 3 — Doctor Consultation
+# Part 2 — Doctor Consultation
 
 Logout.
 
 Login as doctor:
 
 ```txt
-Email:
 doctor.stphilips@example.com
-
-Password:
 Doctor123
 ```
 
@@ -235,9 +220,7 @@ The doctor acknowledges the patient and begins the consultation. The system trac
 
 ---
 
-# Demo Part 4 — Emergency Procedure / Treatment Room
-
-This demonstrates the hospital feedback that a doctor may send a patient to treatment before laboratory testing.
+# Part 3 — Send to Laboratory
 
 With Grace now in:
 
@@ -248,118 +231,39 @@ in consultation
 Tap:
 
 ```txt
-Send to Procedure Room
-```
-
-Enter note:
-
-```txt
-Patient needs emergency wound dressing before lab.
-```
-
-Confirm.
-
-Expected:
-
-```txt
-Send to Procedure Room completed.
-```
-
-Now logout or switch role.
-
-Login as staff if available:
-
-```txt
-Email:
-staff.stphilips@example.com
-
-Password:
-Staff123
-```
-
-If a staff account is not available, use admin:
-
-```txt
-Email:
-admin.stphilips@example.com
-
-Password:
-Admin123
-```
-
-Open:
-
-```txt
-Procedure Room
-```
-
-Find:
-
-```txt
-Grace Achieng
-```
-
-Tap:
-
-```txt
-Start / Record Procedure
-```
-
-Enter:
-
-```txt
-Procedure Name: Wound dressing
-Treatment Given: Tetanus toxoid given
-Emergency: Yes
-Outcome: Stable
-Procedure Notes: Patient arrived with bleeding hand wound. Dressing done.
-```
-
-Tap:
-
-```txt
-Confirm Start / Record Procedure
-```
-
-Expected:
-
-```txt
-procedure in progress
-```
-
-Then tap:
-
-```txt
 Send to Laboratory
 ```
 
 Enter note:
 
 ```txt
-Wound stabilized. Send for lab tests.
+Fever and headache. Order malaria parasite test.
 ```
 
 Confirm.
 
+Expected:
+
+```txt
+Send to Laboratory completed.
+```
+
 Talking point:
 
 ```txt
-The system supports emergency treatment before laboratory testing. The treatment room records the procedure, treatment given, emergency status, outcome, and notes. The patient is not sent directly to dispensary, so billing is not skipped.
+The doctor routes the patient to laboratory with a clear clinical note.
 ```
 
 ---
 
-# Demo Part 5 — Laboratory Records Results
+# Part 4 — Laboratory Records Result
 
 Logout.
 
 Login as lab:
 
 ```txt
-Email:
 lab.stphilips@example.com
-
-Password:
 Lab123
 ```
 
@@ -416,6 +320,12 @@ Tap:
 Confirm Send to Interpretation
 ```
 
+Expected:
+
+```txt
+Send to Interpretation completed.
+```
+
 Talking point:
 
 ```txt
@@ -424,7 +334,7 @@ The laboratory does not just move the patient. It records structured results wit
 
 ---
 
-# Demo Part 6 — Doctor Interprets Lab Results and Adds Prescription
+# Part 5 — Doctor Interprets and Adds Prescription
 
 Logout.
 
@@ -507,17 +417,14 @@ The doctor reviews the actual lab result before continuing the patient journey. 
 
 ---
 
-# Demo Part 7 — Billing Sees Prescription and Records Payment
+# Part 6 — Billing Sees Prescription and Records Payment
 
 Logout.
 
 Login as billing:
 
 ```txt
-Email:
 billing.stphilips@example.com
-
-Password:
 Billing123
 ```
 
@@ -534,8 +441,6 @@ Grace Achieng
 ```
 
 Expected:
-
-You should see:
 
 ```txt
 Prescribed Medicines
@@ -559,8 +464,8 @@ Enter payment details:
 ```txt
 Charged Amount: 50000
 Amount Paid: 50000
-Payment Method: Cash
-Reference: CASH-001
+Payment Method: Mobile Money
+Reference: MOMO-GRACE-001
 Billing Note: Malaria treatment package
 ```
 
@@ -576,11 +481,7 @@ Expected:
 Payment recorded
 ```
 
-Then the system should open or allow access to:
-
-```txt
-Billing Receipt
-```
+Receipt may open automatically.
 
 Show receipt fields:
 
@@ -595,12 +496,6 @@ Payment Method
 Collected By
 ```
 
-If printing is demonstrated, click:
-
-```txt
-🖨️ Print Receipt
-```
-
 Talking point:
 
 ```txt
@@ -609,17 +504,14 @@ Billing sees what the doctor prescribed, records the payment, and only then send
 
 ---
 
-# Demo Part 8 — Pharmacist Dispenses Prescription
+# Part 7 — Pharmacist Dispenses Prescription
 
 Logout.
 
 Login as pharmacist:
 
 ```txt
-Email:
 pharmacist.stphilips@example.com
-
-Password:
 Pharmacist123
 ```
 
@@ -629,7 +521,11 @@ Open:
 Dispense
 ```
 
-Select the patient.
+Select:
+
+```txt
+Grace Achieng
+```
 
 Expected:
 
@@ -652,22 +548,10 @@ Quantity should auto-fill:
 Tap:
 
 ```txt
-Dispense Selected Prescription
-```
-
-or:
-
-```txt
 Dispense All Remaining + Complete Visit
 ```
 
 Expected:
-
-```txt
-Dispensed 10 × Paracetamol ...
-```
-
-or:
 
 ```txt
 All pending prescriptions dispensed and visit completed.
@@ -681,7 +565,7 @@ The pharmacist dispenses against the doctor prescription, not from a free-text d
 
 ---
 
-# Demo Part 9 — Print Medical Form During Checkout
+# Part 8 — Print Medical Form
 
 Still as pharmacist, after selecting the patient, tap:
 
@@ -739,7 +623,7 @@ Allow popups for localhost:8081
 
 ---
 
-# Demo Part 10 — Patient History Shows Full Trail
+# Part 9 — Patient History Shows Full Trail
 
 Login as doctor, reception, or admin.
 
@@ -786,19 +670,330 @@ The patient history is not just a list of visits. It contains the clinical and o
 
 ---
 
-# Demo Part 11 — Doctor Forgot Prescription Recovery Flow
+# Part 10 — Billing Pilot: Drug Shop Walk-in Sale
 
-This is a very important demo moment because it shows the system can handle real human mistakes without breaking workflow.
+Now switch from hospital workflow to the billing pilot.
+
+Login as billing, pharmacist, reception, staff, or admin.
+
+Recommended:
+
+```txt
+billing.stphilips@example.com
+Billing123
+```
+
+Open:
+
+```txt
+Billing Counter
+```
+
+Set:
+
+```txt
+Facility Type: Drug Shop
+```
+
+Use walk-in customer:
+
+```txt
+Walk-in Customer Name: Test Customer
+Walk-in Customer Phone: 0788001111
+```
+
+Add item:
+
+```txt
+Description: Paracetamol
+Category: Medicine
+Quantity: 10
+Unit Price: 200
+```
+
+Initial payment:
+
+```txt
+Amount Paying Now: 2000
+Method: Cash
+Reference: CASH-DRUGSHOP-001
+```
+
+Tap:
+
+```txt
+Create Bill
+```
+
+Expected:
+
+```txt
+Current Bill
+Status: paid
+Balance: UGX 0
+```
+
+Then tap:
+
+```txt
+🖨️ Print Bill Receipt
+```
+
+Expected:
+
+A new browser tab/window opens with:
+
+```txt
+ST. PHILIPS HEALTH FACILITY
+Bill Receipt
+PAID
+```
+
+The receipt should show:
+
+```txt
+Bill number
+Customer name
+Phone
+Items
+Quantity
+Unit price
+Amount
+Subtotal
+Charged amount
+Paid amount
+Balance
+Payment method
+Reference
+Created by
+Date
+```
+
+Talking point:
+
+```txt
+For a drug shop or small clinic, the system can record a walk-in sale, accept cash or mobile money, track the balance, and print a customer receipt.
+```
+
+---
+
+# Part 11 — Billing Pilot: Clinic Partial Payment
+
+Still in:
+
+```txt
+Billing Counter
+```
+
+Tap:
+
+```txt
+Start New Bill
+```
+
+Set:
+
+```txt
+Facility Type: Clinic
+```
+
+Use walk-in customer:
+
+```txt
+Walk-in Customer Name: Partial Payer
+Walk-in Customer Phone: 0788002222
+```
+
+Add item:
+
+```txt
+Description: Consultation fee
+Category: Consultation
+Quantity: 1
+Unit Price: 50000
+```
+
+Initial payment:
+
+```txt
+Amount Paying Now: 20000
+Method: Mobile Money
+Reference: MOMO-PARTIAL-001
+```
+
+Tap:
+
+```txt
+Create Bill
+```
+
+Expected:
+
+```txt
+Status: partial
+Balance: UGX 30,000
+```
+
+Then record remaining payment in Current Bill:
+
+```txt
+Amount: 30000
+Method: Cash
+Reference: CASH-PARTIAL-002
+```
+
+Tap:
+
+```txt
+Record Payment
+```
+
+Expected:
+
+```txt
+Status: paid
+Balance: UGX 0
+```
+
+Talking point:
+
+```txt
+The system supports partial payments. This is important because patients/customers may not always pay the full amount immediately. The outstanding balance is tracked until cleared.
+```
+
+---
+
+# Part 12 — Patient Ledger for Walk-in Customer
+
+Open:
+
+```txt
+Patient Ledger
+```
+
+Search:
+
+```txt
+0788002222
+```
+
+or:
+
+```txt
+Partial Payer
+```
+
+Expected:
+
+You should see a walk-in customer result.
+
+Tap it.
+
+Expected ledger summary:
+
+```txt
+Total Charged: UGX 50,000
+Total Paid: UGX 50,000
+Outstanding: UGX 0
+Bills: 1
+```
+
+Under bills, you should see:
+
+```txt
+Bill number
+Status: paid
+Items: Consultation fee
+Charged
+Paid
+Balance
+Latest payment
+Method
+Reference
+Collected by
+Date
+```
+
+Talking point:
+
+```txt
+The Patient Ledger works for both registered patients and walk-in customers. This is useful for drug shops and clinics that do not want to force full patient registration for every sale.
+```
+
+---
+
+# Part 13 — Daily Cashier Report
+
+Open:
+
+```txt
+Daily Cashier
+```
+
+Login as:
+
+```txt
+admin
+billing
+pharmacist
+```
+
+Expected:
+
+You should see:
+
+```txt
+Billing Summary — Today
+Total Charged
+Total Paid
+Outstanding
+Bills
+```
+
+Collections:
+
+```txt
+Total Collected
+Payments Recorded
+Average per Payment
+```
+
+Payment Methods:
+
+```txt
+Cash
+Mobile Money
+Bank Transfer
+Insurance
+Other
+```
+
+Collections by Staff:
+
+```txt
+Staff name
+Number of payments
+Amount collected
+```
+
+Talking point:
+
+```txt
+This is the reconciliation screen. It helps the owner or manager see what was charged, what was collected, which payment methods were used, and which staff collected the money. This directly addresses billing leakage.
+```
+
+---
+
+# Part 14 — Doctor Forgot Prescription Recovery Flow
+
+This is a strong demo moment because it shows the system can handle real human mistakes without breaking workflow.
 
 Register or use another patient.
 
 Login as doctor:
 
 ```txt
-Email:
 doctor.stphilips@example.com
-
-Password:
 Doctor123
 ```
 
@@ -823,10 +1018,7 @@ Confirm.
 Now logout and login as billing:
 
 ```txt
-Email:
 billing.stphilips@example.com
-
-Password:
 Billing123
 ```
 
@@ -923,123 +1115,82 @@ Billing can now record payment and send to dispensary.
 Talking point:
 
 ```txt
-If the doctor forgets a prescription, the patient is not sent backward through the hospital. The doctor corrects the prescription remotely while the patient remains in billing. This preserves workflow discipline and patient safety.
+If the doctor forgets a prescription, the patient is not sent backward. The doctor corrects the prescription remotely while the patient remains in billing. This preserves workflow discipline and patient safety.
 ```
 
 ---
 
-# Demo Part 12 — Visit Summary / Discharge Note
+# Part 15 — Emergency Procedure Room Case
 
-If demonstrating a completed visit, doctor should complete a visit and enter:
+Use patient:
 
 ```txt
-Diagnosis: Malaria
-Treatment Given: Antimalarial treatment and supportive care
-Advice: Use insecticide-treated bed net. Return if fever worsens or vomiting starts.
-Discharge Status: Improved
+Daniel Okello
 ```
 
-Then patient history should show:
+Flow:
 
 ```txt
-Visit Summary / Discharge Note
-Diagnosis: Malaria
-Treatment Given: ...
-Advice: ...
-Discharge Status: improved
+Doctor consultation
+        ↓
+Send to Procedure Room
+        ↓
+Treatment officer records wound dressing
+        ↓
+Send to Laboratory or Billing
 ```
 
 Talking point:
 
 ```txt
-Closing a visit with a structured discharge note makes the record clinically useful for future visits.
+Some patients need emergency treatment before laboratory testing. The system supports that without losing the record.
+```
+
+Example procedure entry:
+
+```txt
+Procedure Name: Wound dressing
+Treatment Given: Tetanus toxoid given
+Emergency: Yes
+Outcome: Stable
+Procedure Notes: Patient arrived with bleeding hand wound. Cleaning and dressing done.
 ```
 
 ---
 
-# Demo Part 13 — Admin Income and Operations
-
-Login as admin:
-
-```txt
-Email:
-admin.stphilips@example.com
-
-Password:
-Admin123
-```
-
-Open:
-
-```txt
-Admin Overview
-```
-
-or:
-
-```txt
-Payments & Income
-```
-
-Show:
-
-```txt
-Total charged
-Total paid
-Outstanding balance
-Payment method breakdown
-Collections by billing staff
-```
-
-Talking point:
-
-```txt
-Management can see daily income and which billing staff collected which payments. This supports accountability and end-of-day reconciliation.
-```
-
----
-
-# Demo Part 14 — Attendance
-
-Open:
-
-```txt
-Attendance
-```
-
-Demonstrate:
-
-```txt
-Check In
-Check Out
-```
-
-Talking point:
-
-```txt
-Staff attendance is captured within the same system, giving administrators operational visibility alongside patient flow and revenue.
-```
-
----
-
-# Short 5-Minute Fallback Demo
+# Short 5-Minute Hospital Demo
 
 If time is short, do only this:
 
 ```txt
-1. Reception registers patient with Tribe and Next of Kin.
+1. Reception registers Grace Achieng.
 2. Doctor starts consultation.
-3. Doctor sends patient to Laboratory.
+3. Doctor sends Grace to Laboratory.
 4. Lab records Malaria Parasite: Positive.
 5. Doctor opens Interpretation.
 6. Doctor adds prescription and sends to Billing.
 7. Billing sees prescription, records payment, sends to Dispensary.
-8. Pharmacist dispenses prescription.
-9. Pharmacist prints medical form.
+8. Pharmacist dispenses medicine.
+9. Pharmacist prints Medical Form.
 10. Open Patient History and show full trail.
 ```
 
-This still demonstrates the complete hospital workflow.
+---
+
+# Short 5-Minute Billing Pilot Demo
+
+If meeting a drug shop or small clinic, do only this:
+
+```txt
+1. Open Billing Counter.
+2. Select Drug Shop.
+3. Create walk-in customer sale.
+4. Add medicine item.
+5. Record cash or mobile money payment.
+6. Print Bill Receipt.
+7. Open Patient Ledger and show customer balance.
+8. Open Daily Cashier and show today’s collections by method and staff.
+```
 
 ---
 
@@ -1049,13 +1200,13 @@ If extremely short, do only this:
 
 ```txt
 1. Register patient.
-2. Doctor starts consultation.
-3. Doctor sends to laboratory.
-4. Lab records positive malaria result.
-5. Doctor interprets, adds prescription, sends to billing.
-6. Billing records payment and sends to dispensary.
-7. Pharmacist dispenses and prints medical form.
-8. Show patient history.
+2. Doctor sends to laboratory.
+3. Lab records positive malaria result.
+4. Doctor interprets, adds prescription, sends to billing.
+5. Billing records payment and sends to dispensary.
+6. Pharmacist dispenses and prints medical form.
+7. Show patient history.
+8. Show Daily Cashier report.
 ```
 
 ---
@@ -1065,7 +1216,7 @@ If extremely short, do only this:
 End with this summary:
 
 ```txt
-MedTrack St. Philips demonstrates a complete hospital workflow from patient arrival to discharge and revenue capture.
+MedTrack St. Philips demonstrates a complete hospital workflow from patient arrival to discharge and revenue capture, plus a simpler billing pilot module for clinics, drug shops, and walk-in customers.
 
 It supports:
 - reception registration,
@@ -1079,11 +1230,30 @@ It supports:
 - pharmacist dispensing,
 - billing and receipts,
 - printable medical forms,
+- billing counter for clinic/drug-shop sales,
+- partial payments,
+- patient/customer ledger,
+- daily cashier reconciliation,
+- printable bill receipts,
 - income reporting,
 - attendance,
 - and a full patient history.
 
-The goal is to reduce paper movement, improve patient tracking, support emergency contact visibility, and give hospital management clearer operational and financial insight.
+The goal is to reduce paper movement, improve patient tracking, support emergency contact visibility, control billing and pharmacy workflows, and give hospital management clearer operational and financial insight.
+```
+
+---
+
+# Positioning Against Streamline Health
+
+If asked about Streamline Health, use this:
+
+```txt
+Streamline Health is focused on community-based health insurance and connecting communities to hospitals. It reports strong subscriber and hospital-network coverage.
+
+MedTrack is focused on the facility side: what happens inside the clinic, hospital, pharmacy, or drug shop. It handles patient/service capture, billing, receipts, partial payments, outstanding balances, cashier reconciliation, prescription control, dispensing, and printable records.
+
+So MedTrack is not trying to replace a community insurance platform. It can complement such platforms by managing the facility’s internal operations and billing records.
 ```
 
 ---
@@ -1099,7 +1269,9 @@ If one role fails during live demo:
 4. Use a previously completed patient history screen to show the final result.
 5. If prescription matching fails, use the exact drug name shown in Available Drugs Reference.
 6. If medical form popup is blocked, allow popups for localhost:8081.
-7. If doctor forgets prescription, demonstrate Edit Prescription from Patient History.
+7. If bill receipt popup is blocked, allow popups for localhost:8081.
+8. If doctor forgets prescription, demonstrate Edit Prescription from Patient History.
+9. If Daily Cashier does not appear, logout/login as admin or billing and hard refresh.
 ```
 
 ---
@@ -1124,6 +1296,12 @@ Before presenting, confirm:
 ✅ Doctor can edit prescription from patient history
 ✅ Medical form prints from patient history
 ✅ Medical form prints from dispensary screen
+✅ Billing Counter appears in Finance menu
+✅ Patient Ledger appears in Finance menu
+✅ Daily Cashier appears in Finance menu
+✅ Bill Receipt prints from Billing Counter
+✅ Walk-in customer appears in Patient Ledger
+✅ Daily Cashier shows cash/mobile money totals
 ✅ At least one completed patient history is available as fallback
 ✅ README.md is updated
 ✅ DEMO_SCRIPT.md is updated
