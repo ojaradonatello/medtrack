@@ -41,6 +41,29 @@ type MenuSection = {
   items: MenuItem[];
 };
 
+const MODULE_ROUTE_MAP: Record<string, string> = {
+  "/consultation": "consultation",
+  "/laboratory": "laboratory",
+  "/procedure": "procedure",
+  "/interpretation": "interpretation",
+  "/prescription-editor": "prescription",
+  "/billing": "billing",
+  "/billing-counter": "billing_counter",
+  "/patient-ledger": "patient_ledger",
+  "/daily-cashier": "daily_cashier",
+  "/payments": "billing",
+  "/receipt": "billing",
+  "/dispense": "pharmacy",
+  "/inventory": "pharmacy",
+  "/medical-form": "medical_form",
+  "/attendance": "attendance",
+  "/admin-overview": "admin_overview",
+  "/admin-users": "admin_overview",
+  "/alerts": "admin_overview",
+  "/history": "admin_overview",
+  "/anomalies": "admin_overview",
+};
+
 const MENU_SECTIONS: MenuSection[] = [
   {
     title: "Front Desk",
@@ -68,7 +91,7 @@ const MENU_SECTIONS: MenuSection[] = [
     ],
   },
 
-            {
+  {
     title: "Clinical Workflow",
     items: [
       {
@@ -99,7 +122,7 @@ const MENU_SECTIONS: MenuSection[] = [
     ],
   },
 
-   {
+  {
     title: "Finance",
     items: [
       {
@@ -129,6 +152,7 @@ const MENU_SECTIONS: MenuSection[] = [
       },
     ],
   },
+
   {
     title: "Staff",
     items: [
@@ -167,7 +191,7 @@ const MENU_SECTIONS: MenuSection[] = [
       {
         label: "User Management",
         route: "/admin-users",
-        icon: "🧑‍",
+        icon: "🧑‍💼",
       },
       {
         label: "Alerts",
@@ -223,6 +247,13 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 13,
     color: "#6b7280",
+    marginTop: 4,
+  },
+
+  facilityBadge: {
+    fontSize: 12,
+    color: "#2563eb",
+    fontWeight: "600",
     marginTop: 4,
   },
 
@@ -310,14 +341,19 @@ const styles = StyleSheet.create({
 });
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useContext(AuthContext);
+  const { user, loading, hasModule } = useContext(AuthContext);
   const router = useRouter();
   const pathname = usePathname();
 
   const role = user?.role;
   const isLoginRoute = pathname === "/";
   const homeRoute = getHomeRouteForRole(role);
-  const allowed = role ? canAccessRoute(role, pathname) : false;
+  const roleAllowed = role ? canAccessRoute(role, pathname) : false;
+
+  const moduleKey = MODULE_ROUTE_MAP[pathname];
+  const moduleAllowed = moduleKey ? hasModule(moduleKey) : true;
+
+  const allowed = roleAllowed && moduleAllowed;
 
   useEffect(() => {
     if (loading) {
@@ -401,7 +437,8 @@ function DrawerToggleButton() {
 }
 
 function CustomDrawerContent() {
-  const { logout, user } = useContext(AuthContext);
+  const { logout, user, hasModule, facilityName, facilityType } =
+    useContext(AuthContext);
 
   const router = useRouter();
   const pathname = usePathname();
@@ -444,21 +481,33 @@ function CustomDrawerContent() {
 
   const visibleSections = MENU_SECTIONS.map((section) => ({
     ...section,
-    items: section.items.filter((item) =>
-      canAccessRoute(user?.role, item.route)
-    ),
+    items: section.items.filter((item) => {
+      const roleOk = canAccessRoute(user?.role, item.route);
+      const moduleKey = MODULE_ROUTE_MAP[item.route];
+      const moduleOk = moduleKey ? hasModule(moduleKey) : true;
+      return roleOk && moduleOk;
+    }),
   })).filter((section) => section.items.length > 0);
 
   const hasAnyAccess = visibleSections.length > 0;
 
+  const displayFacilityName = facilityName || "MedTrack";
+  const displayFacilityType = facilityType || "";
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>🧠 MedTrack AI</Text>
+        <Text style={styles.title}>🧠 MedTrack</Text>
 
         <Text style={styles.subtitle}>
-          St. Philips Smart Health System
+          {displayFacilityName}
         </Text>
+
+        {displayFacilityType ? (
+          <Text style={styles.facilityBadge}>
+            {displayFacilityType.replace(/_/g, " ")}
+          </Text>
+        ) : null}
 
         {user ? (
           <>
@@ -476,7 +525,7 @@ function CustomDrawerContent() {
       {!hasAnyAccess ? (
         <View style={styles.noAccessBox}>
           <Text style={styles.noAccessText}>
-            No modules available for this role.
+            No modules available for this role at this facility.
           </Text>
         </View>
       ) : (
@@ -521,7 +570,7 @@ export default function Layout() {
             <Drawer
               screenOptions={{
                 headerShown: true,
-                headerTitle: "St. Philips",
+                headerTitle: "MedTrack",
                 headerLeft: () => <DrawerToggleButton />,
                 headerStyle: {
                   backgroundColor: "#ffffff",
@@ -576,11 +625,11 @@ export default function Layout() {
               />
 
               <Drawer.Screen
-               name="edit-patient"
-               options={{
-               title: "Edit Patient",
-               }}
-            />
+                name="edit-patient"
+                options={{
+                  title: "Edit Patient",
+                }}
+              />
 
               <Drawer.Screen
                 name="worklist"
@@ -596,13 +645,12 @@ export default function Layout() {
                 }}
               />
 
-               <Drawer.Screen
-               name="procedure"
-               options={{
-               title: "Procedure Room",
-               }}
-             />
-
+              <Drawer.Screen
+                name="procedure"
+                options={{
+                  title: "Procedure Room",
+                }}
+              />
 
               <Drawer.Screen
                 name="laboratory"
@@ -611,35 +659,63 @@ export default function Layout() {
                 }}
               />
 
-             
-             <Drawer.Screen
-              name="interpretation"
+              <Drawer.Screen
+                name="interpretation"
                 options={{
                   title: "Result Interpretation",
                 }}
               />
-        
+
               <Drawer.Screen
                 name="billing"
                 options={{
                   title: "Billing",
                 }}
               />
+
               <Drawer.Screen
-              name="payments"
-              options={{
-                title: "Payments & Income",
+                name="billing-counter"
+                options={{
+                  title: "Billing Counter",
                 }}
               />
-              
+
               <Drawer.Screen
-               name="receipt"
-               options={{
+                name="patient-ledger"
+                options={{
+                  title: "Patient Ledger",
+                }}
+              />
+
+              <Drawer.Screen
+                name="daily-cashier"
+                options={{
+                  title: "Daily Cashier",
+                }}
+              />
+
+              <Drawer.Screen
+                name="bill-receipt"
+                options={{
+                  title: "Bill Receipt",
+                }}
+              />
+
+              <Drawer.Screen
+                name="payments"
+                options={{
+                  title: "Payments & Income",
+                }}
+              />
+
+              <Drawer.Screen
+                name="receipt"
+                options={{
                   title: "Receipt",
-                 }}
-                 />
-                 
-               <Drawer.Screen
+                }}
+              />
+
+              <Drawer.Screen
                 name="attendance"
                 options={{
                   title: "Attendance",
@@ -657,6 +733,20 @@ export default function Layout() {
                 name="dispense"
                 options={{
                   title: "Dispense",
+                }}
+              />
+
+              <Drawer.Screen
+                name="medical-form"
+                options={{
+                  title: "Medical Form",
+                }}
+              />
+
+              <Drawer.Screen
+                name="prescription-editor"
+                options={{
+                  title: "Edit Prescription",
                 }}
               />
 
