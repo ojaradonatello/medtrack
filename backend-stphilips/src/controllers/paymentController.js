@@ -12,6 +12,16 @@ const PAYMENT_METHODS = [
 
 const PAYMENT_STATUSES = ["paid", "partial", "unpaid"];
 
+function getFacilityFilter(req) {
+  const facilityId = req.facilityId || req.user?.facilityId || null;
+
+  if (facilityId) {
+    return { facility: facilityId };
+  }
+
+  return { facility: null };
+}
+
 function parseAmount(value, label) {
   if (value === undefined || value === null || value === "") {
     return {
@@ -116,6 +126,8 @@ exports.createPayment = async (req, res) => {
       });
     }
 
+    const facilityFilter = getFacilityFilter(req);
+
     const {
       visit,
       chargedAmount,
@@ -168,17 +180,21 @@ exports.createPayment = async (req, res) => {
       cleanMethod = "other";
     }
 
-    const visitDoc = await Visit.findById(visit);
+    const visitDoc = await Visit.findOne({
+      _id: visit,
+      ...facilityFilter,
+    });
 
     if (!visitDoc) {
       return res.status(404).json({
-        error: "Visit not found",
+        error: "Visit not found in this facility",
       });
     }
 
     const status = determinePaymentStatus(charged, paid);
 
     const payment = await Payment.create({
+      facility: facilityFilter.facility,
       visit: visitDoc._id,
       patient: visitDoc.patient,
       chargedAmount: charged,
@@ -214,9 +230,14 @@ exports.getPayments = async (req, res) => {
   try {
     const { range, status, method, limit } = req.query;
 
-    const filter = getRangeFilter(
-      range === "all" ? "all" : range || "today"
-    );
+    const facilityFilter = getFacilityFilter(req);
+
+    const filter = {
+      ...facilityFilter,
+      ...getRangeFilter(
+        range === "all" ? "all" : range || "today"
+      ),
+    };
 
     if (status && PAYMENT_STATUSES.includes(String(status))) {
       filter.status = String(status);
@@ -263,9 +284,16 @@ exports.getSummary = async (req, res) => {
   try {
     const { range } = req.query;
 
+    const facilityFilter = getFacilityFilter(req);
+
     const dateFilter = getRangeFilter(
       range === "all" ? "all" : range || "today"
     );
+
+    const matchFilter = {
+      ...facilityFilter,
+      ...dateFilter,
+    };
 
     const [
       totalAgg,
@@ -275,6 +303,9 @@ exports.getSummary = async (req, res) => {
       collectorAgg,
     ] = await Promise.all([
       Payment.aggregate([
+        {
+          $match: facilityFilter,
+        },
         {
           $group: {
             _id: null,
@@ -287,7 +318,7 @@ exports.getSummary = async (req, res) => {
 
       Payment.aggregate([
         {
-          $match: dateFilter,
+          $match: matchFilter,
         },
         {
           $group: {
@@ -301,7 +332,7 @@ exports.getSummary = async (req, res) => {
 
       Payment.aggregate([
         {
-          $match: dateFilter,
+          $match: matchFilter,
         },
         {
           $group: {
@@ -310,12 +341,11 @@ exports.getSummary = async (req, res) => {
             count: { $sum: 1 },
           },
         },
-        
       ]),
 
       Payment.aggregate([
         {
-          $match: dateFilter,
+          $match: matchFilter,
         },
         {
           $group: {
@@ -328,7 +358,7 @@ exports.getSummary = async (req, res) => {
 
       Payment.aggregate([
         {
-          $match: dateFilter,
+          $match: matchFilter,
         },
         {
           $group: {
@@ -458,7 +488,12 @@ exports.getSummary = async (req, res) => {
 // GET /api/payments/:id
 exports.getPayment = async (req, res) => {
   try {
-    const payment = await Payment.findById(req.params.id)
+    const facilityFilter = getFacilityFilter(req);
+
+    const payment = await Payment.findOne({
+      _id: req.params.id,
+      ...facilityFilter,
+    })
       .populate("visit", "visitNumber status currentDepartment patient")
       .populate("patient", "name phone gender age address tribe nextOfKinName nextOfKinPhone")
       .populate("collectedBy", "name email role");
