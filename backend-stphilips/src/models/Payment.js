@@ -12,6 +12,13 @@ const PAYMENT_STATUSES = ["paid", "partial", "unpaid"];
 
 const paymentSchema = new mongoose.Schema(
   {
+    facility: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Facility",
+      index: true,
+      required: false,
+    },
+
     visit: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Visit",
@@ -79,6 +86,10 @@ const paymentSchema = new mongoose.Schema(
   }
 );
 
+paymentSchema.index({ facility: 1, paidAt: -1 });
+paymentSchema.index({ facility: 1, status: 1 });
+paymentSchema.index({ facility: 1, patient: 1 });
+paymentSchema.index({ facility: 1, visit: 1 });
 paymentSchema.index({ paidAt: -1 });
 paymentSchema.index({ status: 1, paidAt: -1 });
 paymentSchema.index({ patient: 1, paidAt: -1 });

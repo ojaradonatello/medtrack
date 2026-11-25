@@ -1,8 +1,14 @@
 const mongoose = require("mongoose");
 
-
 const drugSchema = new mongoose.Schema(
   {
+    facility: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Facility",
+      index: true,
+      required: false,
+    },
+
     name: {
       type: String,
       required: true,
@@ -22,7 +28,7 @@ const drugSchema = new mongoose.Schema(
     quantity: {
       type: Number,
       default: 0,
-      min: 0, // ✅ prevents negative stock
+      min: 0,
     },
 
     minStockLevel: {
@@ -33,10 +39,14 @@ const drugSchema = new mongoose.Schema(
 
     expiryDate: {
       type: Date,
-      required: true, // ✅ important for expiry alerts
+      required: true,
     },
   },
   { timestamps: true }
 );
+
+drugSchema.index({ facility: 1, name: 1 });
+drugSchema.index({ facility: 1, category: 1 });
+drugSchema.index({ facility: 1, expiryDate: 1 });
 
 module.exports = mongoose.model("Drug", drugSchema);

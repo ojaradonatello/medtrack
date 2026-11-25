@@ -2,6 +2,12 @@ const mongoose = require("mongoose");
 
 const activityLogSchema = new mongoose.Schema(
   {
+      facility: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Facility",
+      index: true,
+      required: false,
+    },
     actor: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -54,5 +60,6 @@ const activityLogSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
-
+activityLogSchema.index({ facility: 1, createdAt: -1 });
+activityLogSchema.index({ facility: 1, user: 1 });
 module.exports = mongoose.model("ActivityLog", activityLogSchema);

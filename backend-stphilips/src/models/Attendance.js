@@ -2,6 +2,12 @@ const mongoose = require("mongoose");
 
 const attendanceSchema = new mongoose.Schema(
   {
+      facility: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Facility",
+      index: true,
+      required: false,
+    },
     staff: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -35,5 +41,7 @@ const attendanceSchema = new mongoose.Schema(
 );
 
 attendanceSchema.index({ staff: 1, date: -1 });
+attendanceSchema.index({ facility: 1, date: -1 });
+attendanceSchema.index({ facility: 1, staff: 1 });
 
 module.exports = mongoose.model("Attendance", attendanceSchema);
