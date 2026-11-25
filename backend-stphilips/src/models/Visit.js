@@ -268,6 +268,13 @@ const visitSummarySchema = new Schema(
 
 const visitSchema = new Schema(
   {
+    facility: {
+      type: Schema.Types.ObjectId,
+      ref: "Facility",
+      index: true,
+      required: false,
+    },
+
     patient: {
       type: Schema.Types.ObjectId,
       ref: "Patient",
@@ -345,6 +352,10 @@ const visitSchema = new Schema(
   }
 );
 
+visitSchema.index({ facility: 1, status: 1 });
+visitSchema.index({ facility: 1, patient: 1 });
+visitSchema.index({ facility: 1, currentDepartment: 1 });
+visitSchema.index({ facility: 1, createdAt: -1 });
 visitSchema.index({ patient: 1, createdAt: -1 });
 visitSchema.index({ status: 1, currentDepartment: 1 });
 
