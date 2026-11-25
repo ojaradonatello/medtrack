@@ -39,6 +39,13 @@ const userSchema = new mongoose.Schema(
       },
       default: "staff",
     },
+
+        facility: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Facility",
+      index: true,
+      required: false,
+    },
   },
   { timestamps: true }
 );
