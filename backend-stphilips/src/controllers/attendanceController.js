@@ -1,6 +1,16 @@
 const Attendance = require("../models/Attendance");
 const User = require("../models/User");
 
+function getFacilityFilter(req) {
+  const facilityId = req.facilityId || req.user?.facilityId || null;
+
+  if (facilityId) {
+    return { facility: facilityId };
+  }
+
+  return { facility: null };
+}
+
 function getTodayRange() {
   const start = new Date();
   start.setHours(0, 0, 0, 0);
@@ -15,9 +25,6 @@ function determineCheckInStatus(date = new Date()) {
   const hours = date.getHours();
   const minutes = date.getMinutes();
 
-  // Simple hospital rule:
-  // Before or at 08:30 = present
-  // After 08:30 = late
   if (hours < 8 || (hours === 8 && minutes <= 30)) {
     return "present";
   }
@@ -33,10 +40,12 @@ function getStaffId(req) {
 // Admin only
 exports.getTodayAttendance = async (req, res) => {
   try {
+    const facilityFilter = getFacilityFilter(req);
     const { start, end } = getTodayRange();
 
     const [attendance, expectedStaff] = await Promise.all([
       Attendance.find({
+        ...facilityFilter,
         date: {
           $gte: start,
           $lte: end,
@@ -46,6 +55,7 @@ exports.getTodayAttendance = async (req, res) => {
         .sort({ checkInAt: -1, createdAt: -1 }),
 
       User.find({
+        ...facilityFilter,
         role: {
           $in: [
             "reception",
@@ -117,10 +127,12 @@ exports.getMyTodayAttendance = async (req, res) => {
       });
     }
 
+    const facilityFilter = getFacilityFilter(req);
     const { start, end } = getTodayRange();
 
     const attendance = await Attendance.findOne({
       staff: staffId,
+      ...facilityFilter,
       date: {
         $gte: start,
         $lte: end,
@@ -151,11 +163,13 @@ exports.checkIn = async (req, res) => {
       });
     }
 
+    const facilityFilter = getFacilityFilter(req);
     const { start, end } = getTodayRange();
     const now = new Date();
 
     let attendance = await Attendance.findOne({
       staff: staffId,
+      ...facilityFilter,
       date: {
         $gte: start,
         $lte: end,
@@ -163,7 +177,6 @@ exports.checkIn = async (req, res) => {
     }).sort({ date: -1 });
 
     if (attendance) {
-      // If already checked in and not checked out, do not duplicate.
       if (attendance.checkInAt && !attendance.checkOutAt) {
         return res.json({
           message: "You have already checked in today.",
@@ -171,7 +184,6 @@ exports.checkIn = async (req, res) => {
         });
       }
 
-      // If checked out earlier, allow a new check-in and reset checkout.
       attendance.checkOutAt = null;
       attendance.checkInAt = attendance.checkInAt || now;
       attendance.status = attendance.status || determineCheckInStatus(now);
@@ -186,6 +198,7 @@ exports.checkIn = async (req, res) => {
     }
 
     attendance = await Attendance.create({
+      facility: facilityFilter.facility,
       staff: staffId,
       date: now,
       status: determineCheckInStatus(now),
@@ -218,10 +231,12 @@ exports.checkOut = async (req, res) => {
       });
     }
 
+    const facilityFilter = getFacilityFilter(req);
     const { start, end } = getTodayRange();
 
     const attendance = await Attendance.findOne({
       staff: staffId,
+      ...facilityFilter,
       date: {
         $gte: start,
         $lte: end,

@@ -1,6 +1,16 @@
 const Patient = require("../models/Patient");
 const Visit = require("../models/Visit");
 
+function getFacilityFilter(req) {
+  const facilityId = req.facilityId || req.user?.facilityId || null;
+
+  if (facilityId) {
+    return { facility: facilityId };
+  }
+
+  return { facility: null };
+}
+
 function generateVisitNumber() {
   const now = new Date();
   const datePart = now.toISOString().slice(0, 10).replace(/-/g, "");
@@ -174,6 +184,8 @@ function validateVitals(vitals) {
 
 // POST /api/reception/register-patient-visit
 exports.registerPatientAndVisit = async (req, res) => {
+  const facilityFilter = getFacilityFilter(req);
+
   const { patient, visit } = req.body;
 
   if (!patient || !patient.name) {
@@ -182,7 +194,8 @@ exports.registerPatientAndVisit = async (req, res) => {
     });
   }
 
-    const cleanPatient = {
+  const cleanPatient = {
+    facility: facilityFilter.facility,
     name: String(patient.name || "").trim(),
     gender: patient.gender,
     phone: patient.phone ? String(patient.phone).trim() : undefined,
@@ -229,6 +242,7 @@ exports.registerPatientAndVisit = async (req, res) => {
 
     const visitPayload = {
       ...visit,
+      facility: facilityFilter.facility,
       patient: createdPatient._id,
       visitNumber: visit?.visitNumber || generateVisitNumber(),
       status: visit?.status || "waiting_consultation",
@@ -267,9 +281,11 @@ exports.registerPatientAndVisit = async (req, res) => {
 // GET /api/reception/queue
 exports.getQueue = async (req, res) => {
   try {
+    const facilityFilter = getFacilityFilter(req);
     const { department, status } = req.query;
 
     const filter = {
+      ...facilityFilter,
       status: { $in: ACTIVE_VISIT_STATUSES },
     };
 
@@ -299,6 +315,7 @@ exports.getQueue = async (req, res) => {
 // GET /api/reception/find-patient?phone=...
 exports.findPatientByPhone = async (req, res) => {
   try {
+    const facilityFilter = getFacilityFilter(req);
     const { phone } = req.query;
 
     if (!phone) {
@@ -310,7 +327,10 @@ exports.findPatientByPhone = async (req, res) => {
 
     const normalizedPhone = String(phone).trim();
 
-    const patient = await Patient.findOne({ phone: normalizedPhone });
+    const patient = await Patient.findOne({
+      phone: normalizedPhone,
+      ...facilityFilter,
+    });
 
     if (!patient) {
       return res.status(404).json({
@@ -318,12 +338,13 @@ exports.findPatientByPhone = async (req, res) => {
         patient: null,
         activeVisit: null,
         canCreateNewVisit: false,
-        message: "No patient found with this phone number",
+        message: "No patient found with this phone number in this facility",
       });
     }
 
     const activeVisit = await Visit.findOne({
       patient: patient._id,
+      ...facilityFilter,
       status: { $in: ACTIVE_VISIT_STATUSES },
     }).sort({ createdAt: -1 });
 
@@ -346,6 +367,8 @@ exports.findPatientByPhone = async (req, res) => {
 // POST /api/reception/create-visit-for-existing-patient
 exports.createVisitForExistingPatient = async (req, res) => {
   try {
+    const facilityFilter = getFacilityFilter(req);
+
     const {
       patientId,
       vitals,
@@ -361,11 +384,14 @@ exports.createVisitForExistingPatient = async (req, res) => {
       });
     }
 
-    const patient = await Patient.findById(patientId);
+    const patient = await Patient.findOne({
+      _id: patientId,
+      ...facilityFilter,
+    });
 
     if (!patient) {
       return res.status(404).json({
-        error: "Patient not found",
+        error: "Patient not found in this facility",
       });
     }
 
@@ -379,6 +405,7 @@ exports.createVisitForExistingPatient = async (req, res) => {
 
     const activeVisit = await Visit.findOne({
       patient: patientId,
+      ...facilityFilter,
       status: { $in: ACTIVE_VISIT_STATUSES },
     }).sort({ createdAt: -1 });
 
@@ -393,6 +420,7 @@ exports.createVisitForExistingPatient = async (req, res) => {
     }
 
     const visitPayload = {
+      facility: facilityFilter.facility,
       patient: patientId,
       visitNumber: generateVisitNumber(),
       status: status || "waiting_consultation",
@@ -418,6 +446,8 @@ exports.createVisitForExistingPatient = async (req, res) => {
 // GET /api/reception/dashboard
 exports.getDashboard = async (req, res) => {
   try {
+    const facilityFilter = getFacilityFilter(req);
+
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
 
@@ -437,32 +467,41 @@ exports.getDashboard = async (req, res) => {
       completedToday,
       registeredToday,
     ] = await Promise.all([
-      Patient.countDocuments(),
+      Patient.countDocuments(facilityFilter),
       Visit.countDocuments({
+        ...facilityFilter,
         status: { $in: ACTIVE_VISIT_STATUSES },
       }),
       Visit.countDocuments({
+        ...facilityFilter,
         status: "waiting_consultation",
       }),
       Visit.countDocuments({
+        ...facilityFilter,
         status: "in_consultation",
       }),
       Visit.countDocuments({
+        ...facilityFilter,
         status: "waiting_lab",
       }),
       Visit.countDocuments({
+        ...facilityFilter,
         status: "lab_in_progress",
       }),
       Visit.countDocuments({
+        ...facilityFilter,
         status: "waiting_interpretation",
       }),
       Visit.countDocuments({
+        ...facilityFilter,
         status: "waiting_billing",
       }),
       Visit.countDocuments({
+        ...facilityFilter,
         status: "waiting_dispensary",
       }),
       Visit.countDocuments({
+        ...facilityFilter,
         status: "completed",
         completedAt: {
           $gte: startOfDay,
@@ -470,6 +509,7 @@ exports.getDashboard = async (req, res) => {
         },
       }),
       Patient.countDocuments({
+        ...facilityFilter,
         createdAt: {
           $gte: startOfDay,
           $lte: endOfDay,
