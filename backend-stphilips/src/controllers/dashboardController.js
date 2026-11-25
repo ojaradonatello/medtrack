@@ -3,63 +3,80 @@ const Drug = require("../models/Drug");
 const Dispense = require("../models/Dispense");
 const Alert = require("../models/Alert");
 
+function getFacilityFilter(req) {
+  const facilityId = req.facilityId || req.user?.facilityId || null;
+
+  if (facilityId) {
+    return { facility: facilityId };
+  }
+
+  return { facility: null };
+}
+
 exports.getDashboardStats = async (req, res) => {
   try {
+    const facilityFilter = getFacilityFilter(req);
+
     // 📦 TOTAL STOCK
-    const inventory = await Inventory.find();
-    const totalStock = inventory.reduce((sum, i) => sum + i.quantity, 0);
+    const inventory = await Inventory.find(facilityFilter);
+    const totalStock = inventory.reduce((sum, i) => sum + (i.quantity || 0), 0);
 
     // 💊 TOTAL DRUGS
-    const totalDrugs = await Drug.countDocuments();
+    const totalDrugs = await Drug.countDocuments(facilityFilter);
 
     // 📊 TODAY DISPENSE
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     const todayDispense = await Dispense.find({
-      createdAt: { $gte: today }
+      ...facilityFilter,
+      createdAt: { $gte: today },
     });
 
     const totalDispensedToday = todayDispense.reduce(
-      (sum, d) => sum + d.quantity,
+      (sum, d) => sum + (d.quantity || 0),
       0
     );
 
     // 🚨 ALERTS
-    const alerts = await Alert.find()
+    const alerts = await Alert.find(facilityFilter)
       .sort({ createdAt: -1 })
       .limit(5);
 
     // ⚠️ LOW STOCK
     const lowStock = await Inventory.find({
-      quantity: { $lt: 50 }
+      ...facilityFilter,
+      quantity: { $lt: 50 },
     }).populate("drug");
 
-    // 📊 TOP DRUGS (FIXED)
+    // 📊 TOP DRUGS
     const topDrugs = await Dispense.aggregate([
+      {
+        $match: facilityFilter,
+      },
       {
         $group: {
           _id: "$drug",
-          total: { $sum: "$quantity" }
-        }
+          total: { $sum: "$quantity" },
+        },
       },
       {
         $lookup: {
           from: "drugs",
           localField: "_id",
           foreignField: "_id",
-          as: "drugInfo"
-        }
+          as: "drugInfo",
+        },
       },
       { $unwind: "$drugInfo" },
       {
         $project: {
           name: "$drugInfo.name",
-          total: 1
-        }
+          total: 1,
+        },
       },
       { $sort: { total: -1 } },
-      { $limit: 5 }
+      { $limit: 5 },
     ]);
 
     // 📈 DAILY USAGE (LAST 7 DAYS)
@@ -69,21 +86,22 @@ exports.getDashboardStats = async (req, res) => {
     const dailyUsage = await Dispense.aggregate([
       {
         $match: {
-          createdAt: { $gte: last7Days }
-        }
+          ...facilityFilter,
+          createdAt: { $gte: last7Days },
+        },
       },
       {
         $group: {
           _id: {
             $dateToString: {
               format: "%Y-%m-%d",
-              date: "$createdAt"
-            }
+              date: "$createdAt",
+            },
           },
-          total: { $sum: "$quantity" }
-        }
+          total: { $sum: "$quantity" },
+        },
       },
-      { $sort: { _id: 1 } }
+      { $sort: { _id: 1 } },
     ]);
 
     res.json({
@@ -93,9 +111,8 @@ exports.getDashboardStats = async (req, res) => {
       alerts,
       lowStock,
       topDrugs,
-      dailyUsage
+      dailyUsage,
     });
-
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

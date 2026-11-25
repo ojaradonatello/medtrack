@@ -1,5 +1,15 @@
 const Dispense = require("../models/Dispense");
 
+function getFacilityFilter(req) {
+  const facilityId = req.facilityId || req.user?.facilityId || null;
+
+  if (facilityId) {
+    return { facility: facilityId };
+  }
+
+  return { facility: null };
+}
+
 function getDateFilter(query) {
   const range = String(query.range || "").toLowerCase();
   const days = Number(query.days) || 0;
@@ -34,10 +44,19 @@ function getDateFilter(query) {
 // ===============================
 exports.getHistory = async (req, res) => {
   try {
-    const filter = getDateFilter(req.query);
+    const facilityFilter = getFacilityFilter(req);
+    const dateFilter = getDateFilter(req.query);
+
+    const filter = {
+      ...facilityFilter,
+      ...dateFilter,
+    };
 
     const history = await Dispense.find(filter)
-      .populate("patient", "name phone gender age address tribe nextOfKinName nextOfKinPhone")
+      .populate(
+        "patient",
+        "name phone gender age address tribe nextOfKinName nextOfKinPhone"
+      )
       .populate("drug", "name category manufacturer")
       .populate("dispensedBy", "name email role")
       .sort({ createdAt: -1 })
@@ -58,7 +77,12 @@ exports.getHistory = async (req, res) => {
 // ===============================
 exports.getStaffAnalytics = async (req, res) => {
   try {
+    const facilityFilter = getFacilityFilter(req);
+
     const analytics = await Dispense.aggregate([
+      {
+        $match: facilityFilter,
+      },
       {
         $group: {
           _id: "$dispensedBy",
@@ -66,7 +90,6 @@ exports.getStaffAnalytics = async (req, res) => {
           totalQuantity: { $sum: "$quantity" },
         },
       },
-
       {
         $lookup: {
           from: "users",
@@ -75,11 +98,9 @@ exports.getStaffAnalytics = async (req, res) => {
           as: "staff",
         },
       },
-
       {
         $unwind: "$staff",
       },
-
       {
         $project: {
           _id: 1,
@@ -90,7 +111,6 @@ exports.getStaffAnalytics = async (req, res) => {
           role: "$staff.role",
         },
       },
-
       {
         $sort: {
           totalDispenses: -1,

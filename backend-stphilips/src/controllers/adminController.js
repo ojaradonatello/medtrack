@@ -28,6 +28,16 @@ const USER_ROLES = [
   "staff",
 ];
 
+function getFacilityFilter(req) {
+  const facilityId = req.facilityId || req.user?.facilityId || null;
+
+  if (facilityId) {
+    return { facility: facilityId };
+  }
+
+  return { facility: null };
+}
+
 function calculateInventoryRisk(inventoryItems) {
   const now = new Date();
   const thirtyDaysFromNow = new Date(
@@ -71,6 +81,8 @@ function calculateInventoryRisk(inventoryItems) {
 // GET /api/admin/overview
 exports.getOverview = async (req, res) => {
   try {
+    const facilityFilter = getFacilityFilter(req);
+
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
 
@@ -100,13 +112,15 @@ exports.getOverview = async (req, res) => {
       paymentTodayAgg,
       paymentMethodAgg,
     ] = await Promise.all([
-      User.countDocuments(),
-      Patient.countDocuments(),
-      Visit.countDocuments(),
+      User.countDocuments(facilityFilter),
+      Patient.countDocuments(facilityFilter),
+      Visit.countDocuments(facilityFilter),
       Visit.countDocuments({
+        ...facilityFilter,
         status: { $in: ACTIVE_VISIT_STATUSES },
       }),
       Visit.countDocuments({
+        ...facilityFilter,
         status: "completed",
         completedAt: {
           $gte: startOfDay,
@@ -114,44 +128,61 @@ exports.getOverview = async (req, res) => {
         },
       }),
       Visit.countDocuments({
+        ...facilityFilter,
         status: "waiting_consultation",
       }),
       Visit.countDocuments({
+        ...facilityFilter,
         status: "in_consultation",
       }),
       Visit.countDocuments({
+        ...facilityFilter,
         status: "waiting_lab",
       }),
       Visit.countDocuments({
+        ...facilityFilter,
         status: "lab_in_progress",
       }),
       Visit.countDocuments({
+        ...facilityFilter,
         status: "waiting_interpretation",
       }),
       Visit.countDocuments({
+        ...facilityFilter,
         status: "waiting_billing",
       }),
       Visit.countDocuments({
+        ...facilityFilter,
         status: "waiting_dispensary",
       }),
       Promise.all(
         USER_ROLES.map(async (role) => {
-          const count = await User.countDocuments({ role });
+          const count = await User.countDocuments({
+            ...facilityFilter,
+            role,
+          });
           return { role, count };
         })
       ),
-      Visit.find()
+      Visit.find(facilityFilter)
         .sort({ createdAt: -1 })
         .limit(10)
-        .populate("patient", "name phone gender age address tribe nextOfKinName nextOfKinPhone"),
-      Inventory.find()
+        .populate(
+          "patient",
+          "name phone gender age address tribe nextOfKinName nextOfKinPhone"
+        ),
+      Inventory.find(facilityFilter)
         .select("quantity minStockLevel expiryDate")
         .lean(),
-      Drug.countDocuments(),
-      Alert.countDocuments(),
-      Alert.countDocuments({ isResolved: false }),
+      Drug.countDocuments(facilityFilter),
+      Alert.countDocuments(facilityFilter),
+      Alert.countDocuments({
+        ...facilityFilter,
+        isResolved: false,
+      }),
 
       Payment.aggregate([
+        { $match: facilityFilter },
         {
           $group: {
             _id: null,
@@ -165,6 +196,7 @@ exports.getOverview = async (req, res) => {
       Payment.aggregate([
         {
           $match: {
+            ...facilityFilter,
             paidAt: {
               $gte: startOfDay,
               $lte: endOfDay,
@@ -184,6 +216,7 @@ exports.getOverview = async (req, res) => {
       Payment.aggregate([
         {
           $match: {
+            ...facilityFilter,
             paidAt: {
               $gte: startOfDay,
               $lte: endOfDay,
@@ -292,6 +325,8 @@ exports.getOverview = async (req, res) => {
 // GET /api/admin/activity-logs
 exports.getActivityLogs = async (req, res) => {
   try {
+    const facilityFilter = getFacilityFilter(req);
+
     const requestedLimit = Number(req.query.limit);
 
     const limit = Math.min(
@@ -302,12 +337,15 @@ exports.getActivityLogs = async (req, res) => {
     );
 
     const [total, logs] = await Promise.all([
-      ActivityLog.countDocuments(),
-      ActivityLog.find()
+      ActivityLog.countDocuments(facilityFilter),
+      ActivityLog.find(facilityFilter)
         .sort({ createdAt: -1 })
         .limit(limit)
         .populate("actor", "name email role")
-        .populate("patient", "name phone gender age address tribe nextOfKinName nextOfKinPhone")
+        .populate(
+          "patient",
+          "name phone gender age address tribe nextOfKinName nextOfKinPhone"
+        )
         .populate("visit", "visitNumber status currentDepartment"),
     ]);
 
