@@ -279,6 +279,16 @@ function cleanText(value) {
   return trimmed;
 }
 
+function getFacilityFilter(req) {
+  const facilityId = req.facilityId || req.user?.facilityId || null;
+
+  if (facilityId) {
+    return { facility: facilityId };
+  }
+
+  return { facility: null };
+}
+
 function validateVitals(vitals) {
   if (vitals === undefined) {
     return { error: null, data: null };
@@ -313,14 +323,20 @@ function validateVitals(vitals) {
       };
     }
 
-    if (systolic !== undefined && (systolic < 0 || systolic > 300)) {
+    if (
+      systolic !== undefined &&
+      (systolic < 50 || systolic > 300)
+    ) {
       return {
         error: "Systolic blood pressure seems invalid",
         data: null,
       };
     }
 
-    if (diastolic !== undefined && (diastolic < 0 || diastolic > 200)) {
+    if (
+      diastolic !== undefined &&
+      (diastolic < 30 || diastolic > 200)
+    ) {
       return {
         error: "Diastolic blood pressure seems invalid",
         data: null,
@@ -903,7 +919,14 @@ function validateProcedures(items) {
 // ➕ Create Visit
 exports.createVisit = async (req, res) => {
   try {
-    const visit = await Visit.create(req.body);
+    const facilityFilter = getFacilityFilter(req);
+
+    const visitData = {
+      ...req.body,
+      facility: facilityFilter.facility,
+    };
+
+    const visit = await Visit.create(visitData);
     res.status(201).json(visit);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -915,7 +938,11 @@ exports.getVisits = async (req, res) => {
   try {
     const { patient, status, department } = req.query;
 
-    const filter = {};
+    const facilityFilter = getFacilityFilter(req);
+
+    const filter = {
+      ...facilityFilter,
+    };
 
     if (patient) {
       filter.patient = patient;
@@ -945,7 +972,12 @@ exports.getVisits = async (req, res) => {
 // 🔍 Get Single Visit
 exports.getVisit = async (req, res) => {
   try {
-    const visit = await Visit.findById(req.params.id).populate(
+    const facilityFilter = getFacilityFilter(req);
+
+    const visit = await Visit.findOne({
+      _id: req.params.id,
+      ...facilityFilter,
+    }).populate(
       "patient",
       "name phone gender age address tribe nextOfKinName nextOfKinPhone"
     );
@@ -1059,7 +1091,12 @@ exports.moveVisit = async (req, res) => {
       });
     }
 
-    const visit = await Visit.findById(req.params.id);
+    const facilityFilter = getFacilityFilter(req);
+
+    const visit = await Visit.findOne({
+      _id: req.params.id,
+      ...facilityFilter,
+    });
 
     if (!visit) {
       return res.status(404).json({ error: "Visit not found" });
@@ -1198,7 +1235,7 @@ exports.moveVisit = async (req, res) => {
       }));
     }
 
-        if (prescriptionData !== null) {
+    if (prescriptionData !== null) {
       if (role !== "admin" && role !== "doctor") {
         return res.status(403).json({
           error: "Only doctors and administrators can edit prescriptions",
@@ -1238,6 +1275,7 @@ exports.moveVisit = async (req, res) => {
         prescribedAt: new Date(),
       }));
     }
+
     if (procedureData !== null) {
       visit.procedures = procedureData.map((item) => ({
         ...item,
@@ -1252,7 +1290,10 @@ exports.moveVisit = async (req, res) => {
 
     await visit.save();
 
-    const updatedVisit = await Visit.findById(visit._id).populate(
+    const updatedVisit = await Visit.findOne({
+      _id: visit._id,
+      ...facilityFilter,
+    }).populate(
       "patient",
       "name phone gender age address tribe nextOfKinName nextOfKinPhone"
     );
@@ -1300,6 +1341,7 @@ exports.moveVisit = async (req, res) => {
       }
 
       await ActivityLog.create({
+        facility: facilityFilter.facility,
         actor: req.user?.id || req.user?._id,
         actorRole: role,
         action,
