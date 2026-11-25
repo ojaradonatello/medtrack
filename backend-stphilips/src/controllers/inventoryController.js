@@ -1,19 +1,43 @@
 const Inventory = require("../models/Inventory");
 const Alert = require("../models/Alert");
+const Drug = require("../models/Drug");
+
+function getFacilityFilter(req) {
+  const facilityId = req.facilityId || req.user?.facilityId || null;
+
+  if (facilityId) {
+    return { facility: facilityId };
+  }
+
+  return { facility: null };
+}
 
 // ➕ ADD STOCK (SAFE VERSION)
 exports.addStock = async (req, res) => {
   try {
+    const facilityFilter = getFacilityFilter(req);
+
     const { drug, quantity, expiryDate, batchNumber, minStockLevel } = req.body;
 
-    // 🔴 VALIDATION (IMPORTANT FIX)
     if (!drug || !quantity) {
       return res.status(400).json({
         error: "drug and quantity are required",
       });
     }
 
+    const drugDoc = await Drug.findOne({
+      _id: drug,
+      ...facilityFilter,
+    });
+
+    if (!drugDoc) {
+      return res.status(404).json({
+        error: "Drug not found in this facility",
+      });
+    }
+
     const item = await Inventory.create({
+      facility: facilityFilter.facility,
       drug,
       quantity,
       expiryDate,
@@ -27,13 +51,14 @@ exports.addStock = async (req, res) => {
   }
 };
 
-
 // 📦 GET INVENTORY (CLEAN + SAFE)
 exports.getStock = async (req, res) => {
   try {
-    const items = await Inventory.find()
-      .populate("drug", "name") // only name needed
-      .lean(); // 🔥 improves performance + prevents weird mongoose issues
+    const facilityFilter = getFacilityFilter(req);
+
+    const items = await Inventory.find(facilityFilter)
+      .populate("drug", "name")
+      .lean();
 
     res.json(items);
   } catch (err) {
@@ -41,20 +66,20 @@ exports.getStock = async (req, res) => {
   }
 };
 
-
 // 🚨 LOW STOCK CHECK (OPTIMIZED + NO DUPLICATES)
-exports.checkLowStock = async () => {
+// Accepts optional facilityId for background/cron use
+exports.checkLowStock = async (facilityId = null) => {
   try {
-    const items = await Inventory.find()
+    const filter = facilityId ? { facility: facilityId } : {};
+
+    const items = await Inventory.find(filter)
       .populate("drug", "name")
       .lean();
 
     for (const item of items) {
       const drugName = item.drug?.name || "Unknown Drug";
 
-      if (item.quantity < item.minStockLevel) {
-
-        // 🔴 BETTER DUPLICATE CHECK (by drug ID, not message)
+      if (Number(item.quantity || 0) < Number(item.minStockLevel || 0)) {
         const exists = await Alert.findOne({
           type: "low-stock",
           "data.inventoryId": item._id,
@@ -62,6 +87,7 @@ exports.checkLowStock = async () => {
 
         if (!exists) {
           await Alert.create({
+            facility: item.facility || null,
             type: "low-stock",
             message: `Low stock for ${drugName}`,
             data: {
@@ -72,7 +98,6 @@ exports.checkLowStock = async () => {
         }
       }
     }
-
   } catch (err) {
     console.error("LOW STOCK ERROR:", err);
   }

@@ -4,6 +4,16 @@ const Visit = require("../models/Visit");
 const User = require("../models/User");
 const anomalyService = require("../services/anomalyService");
 
+function getFacilityFilter(req) {
+  const facilityId = req.facilityId || req.user?.facilityId || null;
+
+  if (facilityId) {
+    return { facility: facilityId };
+  }
+
+  return { facility: null };
+}
+
 function getUserId(req) {
   return req.user?.id || req.user?._id || null;
 }
@@ -30,6 +40,8 @@ exports.dispenseDrug = async (req, res) => {
       });
     }
 
+    const facilityFilter = getFacilityFilter(req);
+
     const { patient, drug, quantity } = req.body;
 
     if (!patient || !drug || !quantity) {
@@ -46,11 +58,14 @@ exports.dispenseDrug = async (req, res) => {
       });
     }
 
-    const inventory = await Inventory.findOne({ drug });
+    const inventory = await Inventory.findOne({
+      drug,
+      ...facilityFilter,
+    });
 
     if (!inventory) {
       return res.status(404).json({
-        message: "Drug not found in inventory",
+        message: "Drug not found in inventory for this facility",
       });
     }
 
@@ -64,6 +79,7 @@ exports.dispenseDrug = async (req, res) => {
     await inventory.save();
 
     const record = await Dispense.create({
+      facility: facilityFilter.facility,
       patient,
       drug,
       quantity: parsedQuantity,
@@ -99,7 +115,12 @@ exports.dispenseDrug = async (req, res) => {
 // GET /api/dispense/queue
 exports.getDispenseQueue = async (req, res) => {
   try {
-    const visits = await Visit.find({ status: "waiting_dispensary" })
+    const facilityFilter = getFacilityFilter(req);
+
+    const visits = await Visit.find({
+      status: "waiting_dispensary",
+      ...facilityFilter,
+    })
       .sort({ createdAt: 1 })
       .populate(
         "patient",
@@ -137,6 +158,8 @@ exports.dispensePrescription = async (req, res) => {
       });
     }
 
+    const facilityFilter = getFacilityFilter(req);
+
     const {
       visitId,
       prescriptionIndex,
@@ -172,11 +195,14 @@ exports.dispensePrescription = async (req, res) => {
       });
     }
 
-    const visit = await Visit.findById(visitId);
+    const visit = await Visit.findOne({
+      _id: visitId,
+      ...facilityFilter,
+    });
 
     if (!visit) {
       return res.status(404).json({
-        error: "Visit not found",
+        error: "Visit not found in this facility",
       });
     }
 
@@ -221,14 +247,17 @@ exports.dispensePrescription = async (req, res) => {
       });
     }
 
-    const inventoryItems = await Inventory.find({ drug: drugId }).sort({
+    const inventoryItems = await Inventory.find({
+      drug: drugId,
+      ...facilityFilter,
+    }).sort({
       expiryDate: 1,
       createdAt: 1,
     });
 
     if (!inventoryItems || inventoryItems.length === 0) {
       return res.status(404).json({
-        error: "Drug not found in inventory",
+        error: "Drug not found in inventory for this facility",
       });
     }
 
@@ -266,6 +295,7 @@ exports.dispensePrescription = async (req, res) => {
     const pharmacist = await User.findById(userId).select("name").lean();
 
     const record = await Dispense.create({
+      facility: facilityFilter.facility,
       patient: visit.patient,
       drug: drugId,
       quantity: parsedQuantity,
@@ -323,7 +353,10 @@ exports.dispensePrescription = async (req, res) => {
 
     await visit.save();
 
-    const updatedVisit = await Visit.findById(visit._id).populate(
+    const updatedVisit = await Visit.findOne({
+      _id: visit._id,
+      ...facilityFilter,
+    }).populate(
       "patient",
       "name phone gender age address tribe nextOfKinName nextOfKinPhone"
     );
