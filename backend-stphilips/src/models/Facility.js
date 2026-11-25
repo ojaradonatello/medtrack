@@ -34,13 +34,12 @@ const facilitySchema = new mongoose.Schema(
       trim: true,
     },
 
-    slug: {
+        slug: {
       type: String,
       required: true,
       unique: true,
       lowercase: true,
       trim: true,
-      index: true,
     },
 
     type: {
@@ -210,7 +209,7 @@ const facilitySchema = new mongoose.Schema(
 );
 
 facilitySchema.index({ type: 1, isActive: 1 });
-facilitySchema.index({ slug: 1 });
+
 
 facilitySchema.methods.hasModule = function hasModule(key) {
   if (!this.isActive) {

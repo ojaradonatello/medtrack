@@ -32,6 +32,8 @@ const MOVE_ROLES = [
 ];
 
 router.use(authenticate);
+const { attachFacility } = require("../middleware/facilityMiddleware");
+router.use(attachFacility);
 
 router.post("/", authorize(...VIEW_ROLES), createVisit);
 

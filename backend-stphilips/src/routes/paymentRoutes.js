@@ -24,6 +24,8 @@ function allowBillingOrAdmin(req, res, next) {
 }
 
 router.use(authenticate);
+const { attachFacility } = require("../middleware/facilityMiddleware");
+router.use(attachFacility);
 router.get("/summary", allowBillingOrAdmin, getSummary);
 
 router.get("/:id", allowBillingOrAdmin, getPayment);

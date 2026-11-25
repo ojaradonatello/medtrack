@@ -27,6 +27,7 @@ app.use("/api/anomalies", require("./routes/anomalyRoutes"));
 app.use("/api/visits", require("./routes/visitRoutes"));
 app.use("/api/reception", require("./routes/receptionRoutes"));
 app.use("/api/admin", require("./routes/adminRoutes"));
+app.use("/api/facilities", require("./routes/facilityRoutes"));
 
 // Health check
 app.get("/api/health", (req, res) => {

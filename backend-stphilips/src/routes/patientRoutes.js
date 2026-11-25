@@ -38,6 +38,8 @@ const DELETE_ROLES = [
 ];
 
 router.use(authenticate);
+const { attachFacility } = require("../middleware/facilityMiddleware");
+router.use(attachFacility);
 
 router.post("/", authorize("admin", "reception", "doctor"), createPatient);
 

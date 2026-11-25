@@ -2,6 +2,13 @@ const mongoose = require("mongoose");
 
 const patientSchema = new mongoose.Schema(
   {
+
+      facility: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Facility",
+      index: true,
+      required: false,
+    },
     name: {
       type: String,
       required: [true, "Patient name is required"],
@@ -53,5 +60,9 @@ const patientSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+
+patientSchema.index({ facility: 1, phone: 1 });
+patientSchema.index({ facility: 1, name: 1 });
 
 module.exports = mongoose.model("Patient", patientSchema);

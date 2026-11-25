@@ -28,6 +28,8 @@ const VOID_ROLES = [
 ];
 
 router.use(authenticate);
+const { attachFacility } = require("../middleware/facilityMiddleware");
+router.use(attachFacility);
 
 router.get("/summary", authorize(...BILL_ROLES), getBillSummary);
 
