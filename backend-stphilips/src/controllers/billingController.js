@@ -36,6 +36,16 @@ const PAYMENT_METHODS = [
   "other",
 ];
 
+function getFacilityFilter(req) {
+  const facilityId = req.facilityId || req.user?.facilityId || null;
+
+  if (facilityId) {
+    return { facility: facilityId };
+  }
+
+  return { facility: null };
+}
+
 function roundMoney(value) {
   const num = Number(value || 0);
 
@@ -175,20 +185,34 @@ function paymentsDateFilter(range) {
   };
 }
 
-function buildPaymentPipeline(range) {
-  const filter = paymentsDateFilter(range);
-  const hasFilter = Object.keys(filter).length > 0;
+function buildPaymentPipeline(range, facilityId) {
+  const dateFilter = paymentsDateFilter(range);
+  const hasDateFilter = Object.keys(dateFilter).length > 0;
+
+  const matchStage = {};
+
+  if (facilityId) {
+    matchStage.facility = facilityId;
+  } else {
+    matchStage.facility = null;
+  }
+
+  if (hasDateFilter) {
+    matchStage["payments.paidAt"] = dateFilter["payments.paidAt"];
+  }
 
   const stages = [];
 
-  if (hasFilter) {
-    stages.push({ $match: filter });
-  }
+  stages.push({ $match: matchStage });
 
   stages.push({ $unwind: "$payments" });
 
-  if (hasFilter) {
-    stages.push({ $match: filter });
+  if (hasDateFilter) {
+    stages.push({
+      $match: {
+        "payments.paidAt": dateFilter["payments.paidAt"],
+      },
+    });
   }
 
   return stages;
@@ -389,6 +413,8 @@ exports.createBill = async (req, res) => {
       });
     }
 
+    const facilityFilter = getFacilityFilter(req);
+
     const {
       facilityType,
       visit,
@@ -450,11 +476,14 @@ exports.createBill = async (req, res) => {
         });
       }
 
-      const patientDoc = await Patient.findById(patient).select("_id name phone");
+      const patientDoc = await Patient.findOne({
+        _id: patient,
+        ...facilityFilter,
+      }).select("_id name phone");
 
       if (!patientDoc) {
         return res.status(404).json({
-          error: "Patient not found",
+          error: "Patient not found in this facility",
         });
       }
 
@@ -470,11 +499,14 @@ exports.createBill = async (req, res) => {
         });
       }
 
-      const visitDoc = await Visit.findById(visit).select("_id patient");
+      const visitDoc = await Visit.findOne({
+        _id: visit,
+        ...facilityFilter,
+      }).select("_id patient");
 
       if (!visitDoc) {
         return res.status(404).json({
-          error: "Visit not found",
+          error: "Visit not found in this facility",
         });
       }
 
@@ -533,6 +565,7 @@ exports.createBill = async (req, res) => {
     }
 
     const bill = await Bill.create({
+      facility: facilityFilter.facility,
       billNumber: generateBillNumber(),
       facilityType: facilityType || "clinic",
       visit: visitId,
@@ -581,7 +614,10 @@ exports.getBills = async (req, res) => {
       limit,
     } = req.query;
 
+    const facilityFilter = getFacilityFilter(req);
+
     const filter = {
+      ...facilityFilter,
       ...createdAtFilter(range === "all" ? "all" : range || "today"),
     };
 
@@ -655,7 +691,11 @@ exports.getBillSummary = async (req, res) => {
 
     const normalizedRange = range === "all" ? "all" : range || "today";
 
+    const facilityFilter = getFacilityFilter(req);
+    const facilityId = facilityFilter.facility;
+
     const billMatch = {
+      ...facilityFilter,
       ...createdAtFilter(normalizedRange),
       status: {
         $nin: ["void", "refunded"],
@@ -683,7 +723,7 @@ exports.getBillSummary = async (req, res) => {
       ]),
 
       Bill.aggregate([
-        ...buildPaymentPipeline(normalizedRange),
+        ...buildPaymentPipeline(normalizedRange, facilityId),
         {
           $group: {
             _id: null,
@@ -694,7 +734,7 @@ exports.getBillSummary = async (req, res) => {
       ]),
 
       Bill.aggregate([
-        ...buildPaymentPipeline(normalizedRange),
+        ...buildPaymentPipeline(normalizedRange, facilityId),
         {
           $group: {
             _id: "$payments.method",
@@ -705,7 +745,7 @@ exports.getBillSummary = async (req, res) => {
       ]),
 
       Bill.aggregate([
-        ...buildPaymentPipeline(normalizedRange),
+        ...buildPaymentPipeline(normalizedRange, facilityId),
         {
           $group: {
             _id: "$payments.collectedBy",
@@ -725,6 +765,7 @@ exports.getBillSummary = async (req, res) => {
       Bill.aggregate([
         {
           $match: {
+            ...facilityFilter,
             status: {
               $in: ["open", "partial"],
             },
@@ -812,17 +853,23 @@ exports.getPatientLedger = async (req, res) => {
       });
     }
 
-    const patient = await Patient.findById(patientId).select(
+    const facilityFilter = getFacilityFilter(req);
+
+    const patient = await Patient.findOne({
+      _id: patientId,
+      ...facilityFilter,
+    }).select(
       "_id name phone gender age address tribe nextOfKinName nextOfKinPhone"
     );
 
     if (!patient) {
       return res.status(404).json({
-        error: "Patient not found",
+        error: "Patient not found in this facility",
       });
     }
 
     const filter = {
+      ...facilityFilter,
       patient: patient._id,
       status: {
         $ne: "void",
@@ -882,7 +929,12 @@ exports.getBill = async (req, res) => {
       });
     }
 
-    const bill = await Bill.findById(id)
+    const facilityFilter = getFacilityFilter(req);
+
+    const bill = await Bill.findOne({
+      _id: id,
+      ...facilityFilter,
+    })
       .populate("patient", "name phone gender age address tribe nextOfKinName nextOfKinPhone")
       .populate("visit", "visitNumber status currentDepartment")
       .populate("createdBy", "name email role");
@@ -916,7 +968,12 @@ exports.addBillPayment = async (req, res) => {
       });
     }
 
-    const bill = await Bill.findById(id);
+    const facilityFilter = getFacilityFilter(req);
+
+    const bill = await Bill.findOne({
+      _id: id,
+      ...facilityFilter,
+    });
 
     if (!bill) {
       return res.status(404).json({
@@ -967,7 +1024,10 @@ exports.addBillPayment = async (req, res) => {
     bill.recalculateTotals();
     await bill.save();
 
-    const populated = await Bill.findById(bill._id)
+    const populated = await Bill.findOne({
+      _id: bill._id,
+      ...facilityFilter,
+    })
       .populate("patient", "name phone gender age address tribe nextOfKinName nextOfKinPhone")
       .populate("visit", "visitNumber status currentDepartment")
       .populate("createdBy", "name email role");
@@ -996,7 +1056,12 @@ exports.voidBill = async (req, res) => {
       });
     }
 
-    const bill = await Bill.findById(id);
+    const facilityFilter = getFacilityFilter(req);
+
+    const bill = await Bill.findOne({
+      _id: id,
+      ...facilityFilter,
+    });
 
     if (!bill) {
       return res.status(404).json({
@@ -1046,7 +1111,10 @@ exports.voidBill = async (req, res) => {
 
     await bill.save();
 
-    const populated = await Bill.findById(bill._id)
+    const populated = await Bill.findOne({
+      _id: bill._id,
+      ...facilityFilter,
+    })
       .populate("patient", "name phone")
       .populate("visit", "visitNumber status currentDepartment")
       .populate("createdBy", "name email role");
