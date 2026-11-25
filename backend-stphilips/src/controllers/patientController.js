@@ -34,6 +34,16 @@ function canRole(role, allowedRoles) {
   return !!role && Array.isArray(allowedRoles) && allowedRoles.includes(role);
 }
 
+function getFacilityFilter(req) {
+  const facilityId = req.facilityId || req.user?.facilityId || null;
+
+  if (facilityId) {
+    return { facility: facilityId };
+  }
+
+  return { facility: null };
+}
+
 function sendError(res, err) {
   if (err.name === "ValidationError") {
     const messages = Object.values(err.errors).map((e) => e.message);
@@ -47,7 +57,7 @@ function sendError(res, err) {
 
     if (field === "phone") {
       return res.status(409).json({
-        error: "A patient with this phone number already exists",
+        error: "A patient with this phone number already exists in this facility",
       });
     }
 
@@ -76,7 +86,14 @@ exports.createPatient = async (req, res) => {
       });
     }
 
-    const patient = await Patient.create(req.body);
+    const facilityFilter = getFacilityFilter(req);
+
+    const patientData = {
+      ...req.body,
+      facility: facilityFilter.facility,
+    };
+
+    const patient = await Patient.create(patientData);
     res.status(201).json(patient);
   } catch (err) {
     sendError(res, err);
@@ -92,7 +109,11 @@ exports.getPatients = async (req, res) => {
       });
     }
 
-    const patients = await Patient.find().sort({ createdAt: -1 });
+    const facilityFilter = getFacilityFilter(req);
+
+    const patients = await Patient.find(facilityFilter)
+      .sort({ createdAt: -1 });
+
     res.json(patients);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -108,7 +129,12 @@ exports.getPatient = async (req, res) => {
       });
     }
 
-    const patient = await Patient.findById(req.params.id);
+    const facilityFilter = getFacilityFilter(req);
+
+    const patient = await Patient.findOne({
+      _id: req.params.id,
+      ...facilityFilter,
+    });
 
     if (!patient) {
       return res.status(404).json({
@@ -131,7 +157,12 @@ exports.getPatientVisits = async (req, res) => {
       });
     }
 
-    const patient = await Patient.findById(req.params.id);
+    const facilityFilter = getFacilityFilter(req);
+
+    const patient = await Patient.findOne({
+      _id: req.params.id,
+      ...facilityFilter,
+    });
 
     if (!patient) {
       return res.status(404).json({
@@ -139,7 +170,10 @@ exports.getPatientVisits = async (req, res) => {
       });
     }
 
-    const visits = await Visit.find({ patient: patient._id })
+    const visits = await Visit.find({
+      patient: patient._id,
+      ...facilityFilter,
+    })
       .sort({ createdAt: -1 })
       .populate(
         "patient",
@@ -198,7 +232,10 @@ exports.searchPatients = async (req, res) => {
       "waiting_dispensary",
     ];
 
+    const facilityFilter = getFacilityFilter(req);
+
     const patients = await Patient.find({
+      ...facilityFilter,
       $or: [
         { name: regex },
         { phone: regex },
@@ -211,6 +248,7 @@ exports.searchPatients = async (req, res) => {
       patients.map(async (patient) => {
         const activeVisit = await Visit.findOne({
           patient: patient._id,
+          ...facilityFilter,
           status: { $in: ACTIVE_VISIT_STATUSES },
         }).sort({ createdAt: -1 });
 
@@ -268,8 +306,13 @@ exports.updatePatient = async (req, res) => {
       });
     }
 
-    const patient = await Patient.findByIdAndUpdate(
-      req.params.id,
+    const facilityFilter = getFacilityFilter(req);
+
+    const patient = await Patient.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        ...facilityFilter,
+      },
       payload,
       { new: true, runValidators: true }
     );
@@ -295,7 +338,12 @@ exports.deletePatient = async (req, res) => {
       });
     }
 
-    const patient = await Patient.findByIdAndDelete(req.params.id);
+    const facilityFilter = getFacilityFilter(req);
+
+    const patient = await Patient.findOneAndDelete({
+      _id: req.params.id,
+      ...facilityFilter,
+    });
 
     if (!patient) {
       return res.status(404).json({
