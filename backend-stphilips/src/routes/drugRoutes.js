@@ -11,6 +11,9 @@ const DRUG_WRITE_ROLES = ["admin"];
 
 router.use(authenticate);
 
+const { attachFacility } = require("../middleware/facilityMiddleware");
+router.use(attachFacility);
+
 router.get("/", authorize(...DRUG_READ_ROLES), drugController.getDrugs);
 
 router.get("/:id", authorize(...DRUG_READ_ROLES), drugController.getDrug);

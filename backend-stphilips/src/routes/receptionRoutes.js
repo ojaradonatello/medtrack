@@ -15,6 +15,9 @@ const {
 // Require login
 router.use(authenticate);
 
+const { attachFacility } = require("../middleware/facilityMiddleware");
+router.use(attachFacility);
+
 // Only admin and reception can use these endpoints
 router.use(authorize("admin", "reception"));
 

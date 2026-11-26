@@ -16,6 +16,9 @@ const {
 } = require("../controllers/userAdminController");
 
 router.use(authenticate);
+
+const { attachFacility } = require("../middleware/facilityMiddleware");
+router.use(attachFacility);
 router.use(authorize("admin"));
 
 router.get("/overview", getOverview);

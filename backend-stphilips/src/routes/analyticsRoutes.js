@@ -2,9 +2,17 @@ const express = require("express");
 const router = express.Router();
 
 const analyticsController = require("../controllers/analyticsController");
-const authMiddleware = require("../middleware/authMiddleware");
+const authenticate = require("../middleware/authMiddleware");
+const authorize = require("../middleware/roleMiddleware");
+const { attachFacility } = require("../middleware/facilityMiddleware");
 
 // 📊 Dashboard
-router.get("/dashboard", authMiddleware, analyticsController.getDashboardStats);
+router.get(
+  "/dashboard",
+  authenticate,
+  attachFacility,
+  authorize("admin", "pharmacist"),
+  analyticsController.getDashboardStats
+);
 
 module.exports = router;

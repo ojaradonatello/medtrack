@@ -7,6 +7,9 @@ const authorize = require("../middleware/roleMiddleware");
 const alertController = require("../controllers/alertController");
 
 router.use(authenticate);
+
+const { attachFacility } = require("../middleware/facilityMiddleware");
+router.use(attachFacility);
 router.use(authorize("admin"));
 
 router.get("/", alertController.getAlerts);

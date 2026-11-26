@@ -11,6 +11,9 @@ const INVENTORY_WRITE_ROLES = ["admin"];
 
 router.use(authenticate);
 
+const { attachFacility } = require("../middleware/facilityMiddleware");
+router.use(attachFacility);
+
 router.get("/", authorize(...INVENTORY_READ_ROLES), inventoryController.getStock);
 
 router.post("/", authorize(...INVENTORY_WRITE_ROLES), inventoryController.addStock);

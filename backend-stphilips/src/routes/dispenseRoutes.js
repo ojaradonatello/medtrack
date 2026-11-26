@@ -10,6 +10,9 @@ const DISPENSE_ROLES = ["admin", "pharmacist"];
 
 router.use(authenticate);
 
+const { attachFacility } = require("../middleware/facilityMiddleware");
+router.use(attachFacility);
+
 router.get(
   "/queue",
   authorize(...DISPENSE_ROLES),
