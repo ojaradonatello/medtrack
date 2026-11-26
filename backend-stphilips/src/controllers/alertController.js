@@ -1,8 +1,23 @@
 const Alert = require("../models/Alert");
 
+function getFacilityFilter(req) {
+  const facilityId = req.facilityId || req.user?.facilityId || null;
+
+  if (facilityId) {
+    return { facility: facilityId };
+  }
+
+  return { facility: null };
+}
+
 exports.getAlerts = async (req, res) => {
   try {
-    const alerts = await Alert.find().sort({ createdAt: -1 });
+    const facilityFilter = getFacilityFilter(req);
+
+    const alerts = await Alert.find(facilityFilter).sort({
+      createdAt: -1,
+    });
+
     res.json(alerts);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -11,8 +26,13 @@ exports.getAlerts = async (req, res) => {
 
 exports.resolveAlert = async (req, res) => {
   try {
-    const alert = await Alert.findByIdAndUpdate(
-      req.params.id,
+    const facilityFilter = getFacilityFilter(req);
+
+    const alert = await Alert.findOneAndUpdate(
+      {
+        _id: req.params.id,
+        ...facilityFilter,
+      },
       { isResolved: true },
       { new: true }
     );

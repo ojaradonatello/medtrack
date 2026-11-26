@@ -1,8 +1,20 @@
 const Dispense = require("../models/Dispense");
 const Inventory = require("../models/Inventory");
+const User = require("../models/User");
+
+function getFacilityFilter(req) {
+  const facilityId = req.facilityId || req.user?.facilityId || null;
+
+  if (facilityId) {
+    return { facility: facilityId };
+  }
+
+  return { facility: null };
+}
 
 exports.getAnomalies = async (req, res) => {
   try {
+    const facilityFilter = getFacilityFilter(req);
 
     const anomalies = [];
 
@@ -11,6 +23,7 @@ exports.getAnomalies = async (req, res) => {
     // =========================
 
     const largeDispense = await Dispense.find({
+      ...facilityFilter,
       quantity: { $gte: 10 },
     })
       .populate("drug")
@@ -21,7 +34,6 @@ exports.getAnomalies = async (req, res) => {
       anomalies.push({
         type: "Large Dispense",
         severity: "high",
-
         message:
           `${item.dispensedBy?.name || "Unknown"} dispensed ` +
           `${item.quantity} units of ` +
@@ -34,6 +46,7 @@ exports.getAnomalies = async (req, res) => {
     // =========================
 
     const lowStock = await Inventory.find({
+      ...facilityFilter,
       $expr: {
         $lte: ["$quantity", "$minStockLevel"],
       },
@@ -43,7 +56,6 @@ exports.getAnomalies = async (req, res) => {
       anomalies.push({
         type: "Low Stock",
         severity: "medium",
-
         message:
           `${item.drug?.name || "Unknown Drug"} ` +
           `is running low (${item.quantity} left)`,
@@ -56,12 +68,14 @@ exports.getAnomalies = async (req, res) => {
 
     const staffActivity = await Dispense.aggregate([
       {
+        $match: facilityFilter,
+      },
+      {
         $group: {
           _id: "$dispensedBy",
           totalDispensed: { $sum: "$quantity" },
         },
       },
-
       {
         $match: {
           totalDispensed: { $gte: 50 },
@@ -69,27 +83,44 @@ exports.getAnomalies = async (req, res) => {
       },
     ]);
 
+    const staffIds = staffActivity
+      .map((item) => item._id)
+      .filter(Boolean);
+
+    const staffUsers =
+      staffIds.length > 0
+        ? await User.find({
+            _id: { $in: staffIds },
+            ...facilityFilter,
+          })
+            .select("name role")
+            .lean()
+        : [];
+
+    const staffMap = new Map(
+      staffUsers.map((user) => [String(user._id), user])
+    );
+
     for (const activity of staffActivity) {
+      const staff = staffMap.get(String(activity._id)) || null;
 
       anomalies.push({
         type: "High Staff Activity",
         severity: "medium",
-
+        staffId: activity._id,
+        staffName: staff?.name || "Unknown Staff",
         message:
-          `Staff ID ${activity._id} dispensed ` +
+          `${staff?.name || "Staff"} dispensed ` +
           `${activity.totalDispensed} total drugs`,
       });
     }
 
     res.json(anomalies);
-
   } catch (err) {
-
-    console.log(err);
+    console.log("ANOMALY CONTROLLER ERROR:", err);
 
     res.status(500).json({
       error: err.message,
     });
-
   }
 };
