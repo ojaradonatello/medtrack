@@ -26,6 +26,7 @@ import {
 import {
   canAccessRoute,
   getHomeRouteForRole,
+  isPublicRoute,
 } from "../src/config/routeGuards";
 
 const queryClient = new QueryClient();
@@ -73,7 +74,22 @@ const MODULE_ROUTE_MAP: Record<string, string> = {
 };
 
 const MENU_SECTIONS: MenuSection[] = [
+
+
+    {
+    title: "Platform",
+    items: [
+      {
+        label: "Platform Console",
+        route: "/platform-admin",
+        icon: "🛰️",
+      },
+    ],
+  },
+
   {
+
+    
     title: "Front Desk",
     items: [
       {
@@ -354,28 +370,26 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   const role = user?.role;
-  const isLoginRoute = pathname === "/";
+  const publicRoute = isPublicRoute(pathname);
   const homeRoute = getHomeRouteForRole(role);
-  const roleAllowed = role ? canAccessRoute(role, pathname) : false;
 
+  const roleAllowed = role ? canAccessRoute(role, pathname) : false;
   const moduleKey = MODULE_ROUTE_MAP[pathname];
   const moduleAllowed = moduleKey ? hasModule(moduleKey) : true;
 
-  const allowed = roleAllowed && moduleAllowed;
+  const allowed = publicRoute ? true : roleAllowed && moduleAllowed;
 
   useEffect(() => {
-    if (loading) {
-      return;
-    }
+    if (loading) return;
 
     if (!user || !role) {
-      if (!isLoginRoute) {
+      if (!publicRoute) {
         router.replace("/");
       }
       return;
     }
 
-    if (isLoginRoute) {
+    if (publicRoute) {
       router.replace(homeRoute);
       return;
     }
@@ -383,7 +397,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     if (!allowed) {
       router.replace(homeRoute);
     }
-  }, [user, role, loading, isLoginRoute, homeRoute, allowed, pathname, router]);
+  }, [user, role, loading, publicRoute, homeRoute, allowed, pathname, router]);
 
   if (loading) {
     return (
@@ -395,10 +409,9 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   }
 
   if (!user || !role) {
-    if (isLoginRoute) {
+    if (publicRoute) {
       return <>{children}</>;
     }
-
     return (
       <View style={styles.guardCenter}>
         <ActivityIndicator size="large" />
@@ -407,13 +420,11 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (isLoginRoute) {
+  if (publicRoute) {
     return (
       <View style={styles.guardCenter}>
         <ActivityIndicator size="large" />
-        <Text style={styles.guardText}>
-          Redirecting to your workspace...
-        </Text>
+        <Text style={styles.guardText}>Redirecting to your workspace...</Text>
       </View>
     );
   }
@@ -594,6 +605,20 @@ export default function Layout() {
                 name="index"
                 options={{
                   headerShown: false,
+                }}
+              />
+
+                            <Drawer.Screen
+                name="register-facility"
+                options={{
+                  headerShown: false,
+                }}
+              />
+
+              <Drawer.Screen
+                name="platform-admin"
+                options={{
+                  title: "Platform Console",
                 }}
               />
 

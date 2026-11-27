@@ -1,4 +1,5 @@
 export type AppRole =
+  | "platform_admin"
   | "admin"
   | "reception"
   | "doctor"
@@ -7,7 +8,11 @@ export type AppRole =
   | "pharmacist"
   | "staff";
 
+export const PUBLIC_ROUTES = ["/", "/register-facility"];
+
 export const ROUTE_ROLES: Record<string, AppRole[]> = {
+  "/platform-admin": ["platform_admin"],
+
   "/dashboard": ["admin", "reception"],
 
   "/admin-overview": ["admin"],
@@ -77,7 +82,7 @@ export const ROUTE_ROLES: Record<string, AppRole[]> = {
   ],
 
   "/daily-cashier": ["admin", "billing", "pharmacist"],
-  
+
   "/bill-receipt": [
     "admin",
     "billing",
@@ -111,18 +116,25 @@ export const ROUTE_ROLES: Record<string, AppRole[]> = {
   "/anomalies": ["admin"],
 };
 
-// ✅ FIXED: Send billing/pharmacist to screens they actually have access to
+export function isPublicRoute(route?: string): boolean {
+  if (!route) return false;
+  return PUBLIC_ROUTES.includes(route);
+}
+
 export function getHomeRouteForRole(role?: string): string {
   switch (role) {
+    case "platform_admin":
+      return "/platform-admin";
+
     case "admin":
     case "reception":
       return "/dashboard";
 
     case "billing":
-      return "/billing-counter"; // <-- FIXED: Was /worklist, caused infinite loop
+      return "/billing-counter";
 
     case "pharmacist":
-      return "/inventory"; // <-- FIXED: Was /worklist, caused infinite loop
+      return "/inventory";
 
     case "doctor":
     case "lab":
@@ -130,13 +142,17 @@ export function getHomeRouteForRole(role?: string): string {
       return "/worklist";
 
     default:
-      return "/dashboard"; // Safer default
+      return "/dashboard";
   }
 }
 
 export function canAccessRoute(role?: string, route?: string): boolean {
   if (!role || !route) {
     return false;
+  }
+
+  if (isPublicRoute(route)) {
+    return true;
   }
 
   if (route === getHomeRouteForRole(role)) {
