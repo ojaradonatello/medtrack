@@ -71,6 +71,9 @@ const MODULE_ROUTE_MAP: Record<string, string> = {
   "/worklist": "consultation",
   "/bill-receipt": "billing_counter",
   "/facility-setup": "admin_overview",
+    "/enrollments": "enrollment",
+  "/enroll-patient": "enrollment",
+  "/enrollment-detail": "enrollment",
 };
 
 const MENU_SECTIONS: MenuSection[] = [
@@ -145,6 +148,23 @@ const MENU_SECTIONS: MenuSection[] = [
       },
     ],
   },
+
+    {
+    title: "Enrollment",
+    items: [
+      {
+        label: "Enrollment Register",
+        route: "/enrollments",
+        icon: "🗂️",
+      },
+      {
+        label: "Enroll Patient",
+        route: "/enroll-patient",
+        icon: "🪪",
+      },
+    ],
+  },
+
 
   {
     title: "Finance",
@@ -704,6 +724,21 @@ export default function Layout() {
                 options={{
                   title: "Billing",
                 }}
+              />
+            
+              <Drawer.Screen
+                name="enrollments"
+                options={{ title: "Enrollment Register" }}
+              />
+
+              <Drawer.Screen
+                name="enroll-patient"
+                options={{ title: "Enroll Patient" }}
+              />
+
+              <Drawer.Screen
+                name="enrollment-detail"
+                options={{ title: "Enrollment Card" }}
               />
 
               <Drawer.Screen

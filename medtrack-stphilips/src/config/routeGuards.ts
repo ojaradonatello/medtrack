@@ -12,6 +12,11 @@ export const PUBLIC_ROUTES = ["/", "/register-facility"];
 
 export const ROUTE_ROLES: Record<string, AppRole[]> = {
   "/platform-admin": ["platform_admin"],
+    "/enrollments": ["admin", "reception", "doctor", "billing"],
+
+  "/enroll-patient": ["admin", "reception", "billing"],
+
+  "/enrollment-detail": ["admin", "reception", "doctor", "billing"],
 
   "/dashboard": ["admin", "reception"],
 
