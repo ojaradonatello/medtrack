@@ -28,6 +28,10 @@ app.use("/api/visits", require("./routes/visitRoutes"));
 app.use("/api/reception", require("./routes/receptionRoutes"));
 app.use("/api/admin", require("./routes/adminRoutes"));
 app.use("/api/facilities", require("./routes/facilityRoutes"));
+app.use("/api/auth", require("./routes/authRoutes"));
+app.use("/api/patients", require("./routes/patientRoutes"));
+app.use("/api/facilities", require("./routes/facilityRoutes"));
+app.use("/api/onboarding", require("./routes/onboardingRoutes"));
 
 // Health check
 app.get("/api/health", (req, res) => {

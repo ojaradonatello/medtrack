@@ -1,8 +1,12 @@
 const mongoose = require("mongoose");
-const User = require("../models/User");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+
+const User = require("../models/User");
 const Attendance = require("../models/Attendance");
+const Facility = require("../models/Facility");
+
+const MODULE_KEYS = Facility.MODULE_KEYS;
 
 function sendAuthError(res, status, message) {
   return res.status(status).json({
@@ -27,7 +31,37 @@ function getFacilityIdFromUser(user) {
     return String(user.facility);
   }
 
+  if (user.facilityId) {
+    return String(user.facilityId);
+  }
+
   return null;
+}
+
+function normalizeModules(modules) {
+  const normalized = {};
+
+  if (modules instanceof Map) {
+    for (const [key, value] of modules.entries()) {
+      normalized[key] = value === true;
+    }
+  } else if (
+    modules &&
+    typeof modules === "object" &&
+    !Array.isArray(modules)
+  ) {
+    for (const key of Object.keys(modules)) {
+      normalized[key] = modules[key] === true;
+    }
+  }
+
+  for (const key of MODULE_KEYS) {
+    if (normalized[key] === undefined) {
+      normalized[key] = false;
+    }
+  }
+
+  return normalized;
 }
 
 function buildSafeUser(user) {
@@ -43,6 +77,14 @@ function buildSafeUser(user) {
   }
 
   obj.facilityId = getFacilityIdFromUser(obj);
+
+  if (obj.facility && typeof obj.facility === "object") {
+    if (obj.facility._id) {
+      obj.facility.id = String(obj.facility._id);
+    }
+
+    obj.facility.modules = normalizeModules(obj.facility.modules);
+  }
 
   return obj;
 }
@@ -78,6 +120,7 @@ exports.register = async (req, res) => {
       email: String(email).toLowerCase().trim(),
       password: hashedPassword,
       role: "staff",
+      isActive: true,
     };
 
     if (facilityId) {
@@ -115,7 +158,7 @@ exports.login = async (req, res) => {
       .select("+password")
       .populate(
         "facility",
-        "name type slug isActive modules settings"
+        "name type slug isActive modules settings receiptHeader medicalFormHeader enrollmentStatus subscriptionPlan subscriptionStatus trialEndsAt rejectedReason suspendedReason"
       );
 
     if (!user) {
@@ -128,12 +171,49 @@ exports.login = async (req, res) => {
       return sendAuthError(res, 400, "Wrong password");
     }
 
+    // Block deactivated individual staff accounts
+    if (user.isActive === false) {
+      return sendAuthError(
+        res,
+        403,
+        "Your account has been deactivated. Contact your facility administrator."
+      );
+    }
+
     const facilityId = getFacilityIdFromUser(user);
 
-    if (
-      user.facility &&
-      user.facility.isActive === false
-    ) {
+    // Block pending / rejected / suspended facilities
+    if (user.facility && user.facility.isActive === false) {
+      const status = user.facility.enrollmentStatus;
+
+      if (status === "pending") {
+        return sendAuthError(
+          res,
+          403,
+          "Your facility registration is pending approval. You will be contacted once it is approved."
+        );
+      }
+
+      if (status === "rejected") {
+        return sendAuthError(
+          res,
+          403,
+          `Your facility registration was not approved. Reason: ${
+            user.facility.rejectedReason || "Not specified"
+          }`
+        );
+      }
+
+      if (status === "suspended") {
+        return sendAuthError(
+          res,
+          403,
+          `This facility is suspended. Reason: ${
+            user.facility.suspendedReason || "Not specified"
+          }`
+        );
+      }
+
       return sendAuthError(
         res,
         403,
@@ -141,13 +221,14 @@ exports.login = async (req, res) => {
       );
     }
 
-    // Auto attendance for today
+    // Auto attendance for today (never blocks login)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     try {
       const alreadyMarked = await Attendance.findOne({
         staff: user._id,
+        facility: facilityId || null,
         date: {
           $gte: today,
         },
@@ -155,12 +236,14 @@ exports.login = async (req, res) => {
 
       if (!alreadyMarked) {
         await Attendance.create({
+          facility: facilityId || null,
           staff: user._id,
+          date: new Date(),
           status: "present",
+          checkInAt: new Date(),
         });
       }
     } catch (attendanceErr) {
-      // Do not block login if attendance fails
       console.log(
         "Attendance auto-mark error:",
         attendanceErr.message

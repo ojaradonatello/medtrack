@@ -18,6 +18,55 @@ function getUserId(req) {
   return req.user?._id || req.user?.id || null;
 }
 
+function getFacilityIdFromReq(req) {
+  if (req.facilityId) {
+    return String(req.facilityId);
+  }
+
+  if (req.user && req.user.facilityId) {
+    return String(req.user.facilityId);
+  }
+
+  if (req.user && req.user.facility) {
+    if (
+      typeof req.user.facility === "object" &&
+      req.user.facility._id
+    ) {
+      return String(req.user.facility._id);
+    }
+
+    return String(req.user.facility);
+  }
+
+  return null;
+}
+
+function normalizeModules(modules) {
+  const normalized = {};
+
+  if (modules instanceof Map) {
+    for (const [key, value] of modules.entries()) {
+      normalized[key] = value === true;
+    }
+  } else if (
+    modules &&
+    typeof modules === "object" &&
+    !Array.isArray(modules)
+  ) {
+    for (const key of Object.keys(modules)) {
+      normalized[key] = modules[key] === true;
+    }
+  }
+
+  for (const key of MODULE_KEYS) {
+    if (normalized[key] === undefined) {
+      normalized[key] = false;
+    }
+  }
+
+  return normalized;
+}
+
 function buildDefaultModules(facilityType) {
   const modules = {};
 
@@ -133,7 +182,8 @@ exports.createFacility = async (req, res) => {
 
     if (existing) {
       return res.status(400).json({
-        error: "A facility with a similar name already exists. Use a different name.",
+        error:
+          "A facility with a similar name already exists. Use a different name.",
       });
     }
 
@@ -154,21 +204,27 @@ exports.createFacility = async (req, res) => {
       town: town ? String(town).trim() : undefined,
       district: district ? String(district).trim() : undefined,
       region: region ? String(region).trim() : "Northern",
+      country: "Uganda",
       currency: currency ? String(currency).trim() : "UGX",
       timezone: timezone ? String(timezone).trim() : "Africa/Kampala",
       receiptHeader: receiptHeader ? String(receiptHeader).trim() : undefined,
       receiptFooter: receiptFooter ? String(receiptFooter).trim() : undefined,
-      medicalFormHeader: medicalFormHeader ? String(medicalFormHeader).trim() : undefined,
-      modules: finalModules,
+      medicalFormHeader: medicalFormHeader
+        ? String(medicalFormHeader).trim()
+        : undefined,
+      modules: new Map(Object.entries(finalModules)),
       settings: settings || {},
       notes: notes ? String(notes).trim() : undefined,
       createdBy: userId,
       pilotStartedAt: new Date(),
     });
 
+    const safeFacility = facility.toObject();
+    safeFacility.modules = normalizeModules(facility.modules);
+
     return res.status(201).json({
       message: "Facility created successfully.",
-      facility,
+      facility: safeFacility,
     });
   } catch (err) {
     console.log("CREATE FACILITY ERROR:", err);
@@ -211,9 +267,24 @@ exports.getFacilities = async (req, res) => {
         .populate("createdBy", "name email role"),
     ]);
 
+    const safeFacilities = facilities.map((facility) => {
+      const obj =
+        facility && typeof facility.toObject === "function"
+          ? facility.toObject()
+          : { ...facility };
+
+      obj.modules = normalizeModules(obj.modules);
+
+      if (obj._id) {
+        obj.id = String(obj._id);
+      }
+
+      return obj;
+    });
+
     return res.json({
       total,
-      facilities,
+      facilities: safeFacilities,
     });
   } catch (err) {
     console.log("GET FACILITIES ERROR:", err);
@@ -227,7 +298,7 @@ exports.getFacilities = async (req, res) => {
 // GET /api/facilities/my
 exports.getMyFacility = async (req, res) => {
   try {
-    const facilityId = req.facilityId || req.user?.facilityId || null;
+    const facilityId = getFacilityIdFromReq(req);
 
     if (!facilityId) {
       return res.json({
@@ -236,15 +307,11 @@ exports.getMyFacility = async (req, res) => {
       });
     }
 
-    const facility = await Facility.findById(facilityId)
-      .select(
-        "name slug type phone email address town district region currency timezone receiptHeader receiptFooter medicalFormHeader modules settings isActive pilotMode pilotStartedAt pilotEndsAt notes"
-      )
-      .lean();
+    const facility = await Facility.findById(facilityId).lean();
 
     if (!facility) {
       return res.status(404).json({
-        error: "Facility not found.",
+        error: "Facility not found",
       });
     }
 
@@ -254,49 +321,20 @@ exports.getMyFacility = async (req, res) => {
       });
     }
 
-    const modules = {};
+    facility.modules = normalizeModules(facility.modules);
 
-    if (facility.modules) {
-      if (facility.modules instanceof Map) {
-        for (const [key, value] of facility.modules.entries()) {
-          modules[key] = value;
-        }
-      } else if (typeof facility.modules === "object") {
-        Object.assign(modules, facility.modules);
-      }
+    if (facility._id) {
+      facility.id = String(facility._id);
     }
 
     return res.json({
-      facility: {
-        _id: facility._id,
-        name: facility.name,
-        slug: facility.slug,
-        type: facility.type,
-        phone: facility.phone,
-        email: facility.email,
-        address: facility.address,
-        town: facility.town,
-        district: facility.district,
-        region: facility.region,
-        currency: facility.currency,
-        timezone: facility.timezone,
-        receiptHeader: facility.receiptHeader,
-        receiptFooter: facility.receiptFooter,
-        medicalFormHeader: facility.medicalFormHeader,
-        modules,
-        settings: facility.settings,
-        isActive: facility.isActive,
-        pilotMode: facility.pilotMode,
-        pilotStartedAt: facility.pilotStartedAt,
-        pilotEndsAt: facility.pilotEndsAt,
-        notes: facility.notes,
-      },
+      facility,
     });
   } catch (err) {
     console.log("GET MY FACILITY ERROR:", err);
 
     return res.status(500).json({
-      error: err.message || "Failed to load facility context",
+      error: err.message || "Failed to load facility",
     });
   }
 };
@@ -305,10 +343,17 @@ exports.getMyFacility = async (req, res) => {
 exports.getFacility = async (req, res) => {
   try {
     const facility = await Facility.findById(req.params.id)
-      .populate("createdBy", "name email role");
+      .populate("createdBy", "name email role")
+      .lean();
 
     if (!facility) {
       return res.status(404).json({ error: "Facility not found" });
+    }
+
+    facility.modules = normalizeModules(facility.modules);
+
+    if (facility._id) {
+      facility.id = String(facility._id);
     }
 
     return res.json({ facility });
@@ -356,12 +401,19 @@ exports.updateFacility = async (req, res) => {
     for (const field of allowedFields) {
       if (req.body[field] !== undefined) {
         if (field === "modules" && typeof req.body[field] === "object") {
+          if (!facility.modules) {
+            facility.modules = new Map();
+          }
+
           for (const [key, value] of Object.entries(req.body[field])) {
             facility.modules.set(key, Boolean(value));
           }
-        } else if (field === "settings" && typeof req.body[field] === "object") {
+        } else if (
+          field === "settings" &&
+          typeof req.body[field] === "object"
+        ) {
           facility.settings = {
-            ...facility.settings,
+            ...(facility.settings || {}),
             ...req.body[field],
           };
         } else {
@@ -376,9 +428,16 @@ exports.updateFacility = async (req, res) => {
 
     await facility.save();
 
+    const obj = facility.toObject();
+    obj.modules = normalizeModules(facility.modules);
+
+    if (obj._id) {
+      obj.id = String(obj._id);
+    }
+
     return res.json({
       message: "Facility updated successfully.",
-      facility,
+      facility: obj,
     });
   } catch (err) {
     console.log("UPDATE FACILITY ERROR:", err);
@@ -420,7 +479,7 @@ exports.assignUserToFacility = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        facilityId: user.facility,
+        facilityId: facility._id,
       },
     });
   } catch (err) {

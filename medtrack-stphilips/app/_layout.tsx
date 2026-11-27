@@ -62,6 +62,14 @@ const MODULE_ROUTE_MAP: Record<string, string> = {
   "/alerts": "admin_overview",
   "/history": "admin_overview",
   "/anomalies": "admin_overview",
+    "/patients": "consultation",
+  "/patient-history": "consultation",
+  "/edit-patient": "consultation",
+  "/queue": "consultation",
+  "/add-patient": "consultation",
+  "/worklist": "consultation",
+  "/bill-receipt": "billing_counter",
+  "/facility-setup": "admin_overview",
 };
 
 const MENU_SECTIONS: MenuSection[] = [

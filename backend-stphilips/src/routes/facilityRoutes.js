@@ -12,7 +12,7 @@ const {
   assignUserToFacility,
   getFacilityUsers,
   getMyFacility,
-} = require("../controllers/facilityController");
+} = require("../controllers/facilityController");;
 
 const { attachFacility } = require("../middleware/facilityMiddleware");
 

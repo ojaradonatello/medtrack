@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 
 const USER_ROLES = [
+  "platform_admin",
   "admin",
   "reception",
   "doctor",
@@ -35,20 +36,30 @@ const userSchema = new mongoose.Schema(
       type: String,
       enum: {
         values: USER_ROLES,
-        message: "Role must be admin, reception, doctor, lab, billing, pharmacist, or staff",
+        message:
+          "Role must be platform_admin, admin, reception, doctor, lab, billing, pharmacist, or staff",
       },
       default: "staff",
     },
 
-        facility: {
+    facility: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Facility",
       index: true,
       required: false,
     },
+
+    isActive: {
+      type: Boolean,
+      default: true,
+      index: true,
+    },
   },
   { timestamps: true }
 );
+
+userSchema.index({ facility: 1, role: 1 });
+userSchema.index({ facility: 1, isActive: 1 });
 
 // Hide password from JSON responses
 userSchema.set("toJSON", {

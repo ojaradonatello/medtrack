@@ -77,13 +77,14 @@ export const ROUTE_ROLES: Record<string, AppRole[]> = {
   ],
 
   "/daily-cashier": ["admin", "billing", "pharmacist"],
+  
   "/bill-receipt": [
-  "admin",
-  "billing",
-  "reception",
-  "pharmacist",
-  "staff",
-],
+    "admin",
+    "billing",
+    "reception",
+    "pharmacist",
+    "staff",
+  ],
 
   "/payments": ["admin", "billing"],
 
@@ -110,21 +111,26 @@ export const ROUTE_ROLES: Record<string, AppRole[]> = {
   "/anomalies": ["admin"],
 };
 
+// ✅ FIXED: Send billing/pharmacist to screens they actually have access to
 export function getHomeRouteForRole(role?: string): string {
   switch (role) {
     case "admin":
     case "reception":
       return "/dashboard";
 
+    case "billing":
+      return "/billing-counter"; // <-- FIXED: Was /worklist, caused infinite loop
+
+    case "pharmacist":
+      return "/inventory"; // <-- FIXED: Was /worklist, caused infinite loop
+
     case "doctor":
     case "lab":
-    case "billing":
-    case "pharmacist":
     case "staff":
       return "/worklist";
 
     default:
-      return "/worklist";
+      return "/dashboard"; // Safer default
   }
 }
 

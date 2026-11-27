@@ -173,6 +173,86 @@ const facilitySchema = new mongoose.Schema(
         default: "R",
       },
     },
+  
+
+
+        enrollmentStatus: {
+      type: String,
+      enum: ["pending", "approved", "rejected", "suspended"],
+      default: "approved",
+      index: true,
+    },
+
+    subscriptionPlan: {
+      type: String,
+      enum: ["pilot", "basic", "standard", "enterprise"],
+      default: "pilot",
+    },
+
+    subscriptionStatus: {
+      type: String,
+      enum: ["trial", "active", "past_due", "cancelled"],
+      default: "trial",
+    },
+
+    trialEndsAt: {
+      type: Date,
+    },
+
+    ownerName: {
+      type: String,
+      trim: true,
+    },
+
+    ownerPhone: {
+      type: String,
+      trim: true,
+    },
+
+    ownerEmail: {
+      type: String,
+      trim: true,
+      lowercase: true,
+    },
+
+    licenseNumber: {
+      type: String,
+      trim: true,
+    },
+
+    registrationNumber: {
+      type: String,
+      trim: true,
+    },
+
+    approvedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+
+    approvedAt: {
+      type: Date,
+    },
+
+    rejectedReason: {
+      type: String,
+      trim: true,
+    },
+
+    suspendedAt: {
+      type: Date,
+    },
+
+    suspendedReason: {
+      type: String,
+      trim: true,
+    },
+
+    maxUsers: {
+      type: Number,
+      default: 5,
+    },
+
 
     isActive: {
       type: Boolean,
@@ -209,6 +289,9 @@ const facilitySchema = new mongoose.Schema(
 );
 
 facilitySchema.index({ type: 1, isActive: 1 });
+
+facilitySchema.index({ enrollmentStatus: 1, createdAt: -1 });
+facilitySchema.index({ subscriptionPlan: 1, subscriptionStatus: 1 });
 
 
 facilitySchema.methods.hasModule = function hasModule(key) {
